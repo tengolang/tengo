@@ -1689,3 +1689,59 @@ func (o *UserFunction) Call(args ...Object) (Object, error) {
 func (o *UserFunction) CanCall() bool {
 	return true
 }
+
+// MultiValue holds multiple return values from a function. It is an internal
+// VM type used to carry multiple return values across a single stack slot.
+// In any single-value context it transparently unwraps to its first element.
+type MultiValue struct {
+	ObjectImpl
+	Values []Object
+}
+
+// TypeName returns the name of the type.
+func (o *MultiValue) TypeName() string {
+	return "multi-value"
+}
+
+func (o *MultiValue) String() string {
+	parts := make([]string, len(o.Values))
+	for i, v := range o.Values {
+		parts[i] = v.String()
+	}
+	return "(" + strings.Join(parts, ", ") + ")"
+}
+
+// IsFalsy returns true when the first value is falsy (or there are no values).
+func (o *MultiValue) IsFalsy() bool {
+	if len(o.Values) == 0 {
+		return true
+	}
+	return o.Values[0].IsFalsy()
+}
+
+// Copy returns a deep copy of the MultiValue.
+func (o *MultiValue) Copy() Object {
+	vals := make([]Object, len(o.Values))
+	for i, v := range o.Values {
+		vals[i] = v.Copy()
+	}
+	return &MultiValue{Values: vals}
+}
+
+// Equals returns true if the other object is an identical MultiValue.
+func (o *MultiValue) Equals(x Object) bool {
+	return false
+}
+
+// unwrapMultiValue returns the first element of a MultiValue, or the object
+// itself if it is not a MultiValue. Used at every store site in the VM so
+// that single-assignment transparently receives the primary return value.
+func unwrapMultiValue(o Object) Object {
+	if mv, ok := o.(*MultiValue); ok {
+		if len(mv.Values) > 0 {
+			return mv.Values[0]
+		}
+		return UndefinedValue
+	}
+	return o
+}

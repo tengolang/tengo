@@ -492,14 +492,13 @@ func (c *Compiler) Compile(node parser.Node) error {
 			return c.errorf(node, "return not allowed outside function")
 		}
 
-		if node.Result == nil {
-			c.emit(node, parser.OpReturn, 0)
-		} else {
-			if err := c.Compile(node.Result); err != nil {
+		n := len(node.Results)
+		for _, result := range node.Results {
+			if err := c.Compile(result); err != nil {
 				return err
 			}
-			c.emit(node, parser.OpReturn, 1)
 		}
+		c.emit(node, parser.OpReturn, n)
 	case *parser.CallExpr:
 		if err := c.Compile(node.Func); err != nil {
 			return err
@@ -678,8 +677,15 @@ func (c *Compiler) compileAssign(
 	op token.Token,
 ) error {
 	numLHS, numRHS := len(lhs), len(rhs)
-	if numLHS > 1 || numRHS > 1 {
-		return c.errorf(node, "tuple assignment not allowed")
+
+	// Multi-assignment: a, b, c := f()  or  a, b, c := e1, e2, e3
+	if numLHS > 1 {
+		return c.compileMultiAssign(node, lhs, rhs, op)
+	}
+
+	// Single assignment — original path below.
+	if numRHS > 1 {
+		return c.errorf(node, "multiple-value in single-value context")
 	}
 
 	// resolve and compile left-hand side
@@ -702,6 +708,14 @@ func (c *Compiler) compileAssign(
 		}
 	} else {
 		if !exists {
+			if ident == "_" {
+				// assigning to _ is a discard; compile RHS for side effects then pop
+				if err := c.Compile(rhs[0]); err != nil {
+					return err
+				}
+				c.emit(node, parser.OpPop)
+				return nil
+			}
 			return c.errorf(node, "unresolved reference '%s'", ident)
 		}
 	}
@@ -721,6 +735,11 @@ func (c *Compiler) compileAssign(
 	}
 
 	if op == token.Define && !isFunc {
+		if ident == "_" {
+			// _ := expr  — discard
+			c.emit(node, parser.OpPop)
+			return nil
+		}
 		symbol = c.symbolTable.Define(ident)
 	}
 
@@ -785,6 +804,106 @@ func (c *Compiler) compileAssign(
 	default:
 		panic(fmt.Errorf("invalid assignment variable scope: %s",
 			symbol.Scope))
+	}
+	return nil
+}
+
+// compileMultiAssign handles assignments with more than one LHS variable:
+//
+//	a, b, c := f()        — destructure a single multi-return call
+//	a, b, c := e1, e2, e3 — parallel assignment
+//	a, b, c = e1, e2, e3  — parallel re-assignment
+//
+// The blank identifier _ on any LHS discards that position's value.
+func (c *Compiler) compileMultiAssign(
+	node parser.Node,
+	lhs, rhs []parser.Expr,
+	op token.Token,
+) error {
+	numLHS, numRHS := len(lhs), len(rhs)
+
+	if op != token.Assign && op != token.Define {
+		return c.errorf(node, "operator not allowed in multi-assignment")
+	}
+
+	if numRHS == 1 {
+		// Destructure: a, b, c := f()
+		if err := c.Compile(rhs[0]); err != nil {
+			return err
+		}
+		c.emit(node, parser.OpUnpack, numLHS)
+	} else if numRHS == numLHS {
+		// Parallel: a, b, c := e1, e2, e3  — evaluate all RHS first
+		for _, expr := range rhs {
+			if err := c.Compile(expr); err != nil {
+				return err
+			}
+		}
+	} else {
+		return c.errorf(node,
+			"assignment mismatch: %d variables but %d values", numLHS, numRHS)
+	}
+
+	// Assign in reverse order so LHS[0] gets the deepest stack value.
+	for i := numLHS - 1; i >= 0; i-- {
+		ident, selectors := resolveAssignLHS(lhs[i])
+		numSel := len(selectors)
+
+		if ident == "_" {
+			c.emit(node, parser.OpPop)
+			continue
+		}
+
+		var symbol *Symbol
+		if op == token.Define {
+			_, depth, exists := c.symbolTable.Resolve(ident, false)
+			if depth == 0 && exists {
+				return c.errorf(node, "'%s' redeclared in this block", ident)
+			}
+			symbol = c.symbolTable.Define(ident)
+		} else {
+			var exists bool
+			symbol, _, exists = c.symbolTable.Resolve(ident, false)
+			if !exists {
+				return c.errorf(node, "unresolved reference '%s'", ident)
+			}
+		}
+
+		// compile selector expressions (right to left)
+		for j := numSel - 1; j >= 0; j-- {
+			if err := c.Compile(selectors[j]); err != nil {
+				return err
+			}
+		}
+
+		switch symbol.Scope {
+		case ScopeGlobal:
+			if numSel > 0 {
+				c.emit(node, parser.OpSetSelGlobal, symbol.Index, numSel)
+			} else {
+				c.emit(node, parser.OpSetGlobal, symbol.Index)
+			}
+		case ScopeLocal:
+			if numSel > 0 {
+				c.emit(node, parser.OpSetSelLocal, symbol.Index, numSel)
+			} else {
+				if op == token.Define && !symbol.LocalAssigned {
+					c.emit(node, parser.OpDefineLocal, symbol.Index)
+				} else {
+					c.emit(node, parser.OpSetLocal, symbol.Index)
+				}
+			}
+			symbol.LocalAssigned = true
+		case ScopeFree:
+			if numSel > 0 {
+				c.emit(node, parser.OpSetSelFree, symbol.Index, numSel)
+			} else {
+				c.emit(node, parser.OpSetFree, symbol.Index)
+			}
+		default:
+			panic(fmt.Errorf("invalid assignment variable scope: %s",
+				symbol.Scope))
+		}
 	}
 	return nil
 }

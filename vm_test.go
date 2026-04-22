@@ -4199,3 +4199,85 @@ func objectZeroCopy(o tengo.Object) tengo.Object {
 		panic(fmt.Errorf("unknown object type: %s", o.TypeName()))
 	}
 }
+
+func TestMultipleReturns(t *testing.T) {
+	// basic multiple return — pack into array for single out check
+	expectRun(t, `
+f := func() { return 1, 2, 3 }
+a, b, c := f()
+out = [a, b, c]
+`, Opts(), ARR{1, 2, 3})
+
+	// parallel assignment
+	expectRun(t, `
+a, b := 10, 20
+out = [a, b]
+`, Opts(), ARR{10, 20})
+
+	// swap
+	expectRun(t, `
+a := 1
+b := 2
+a, b = b, a
+out = [a, b]
+`, Opts(), ARR{2, 1})
+
+	// blank identifier discards value
+	expectRun(t, `
+f := func() { return 7, 8, 9 }
+a, _, c := f()
+out = [a, c]
+`, Opts(), ARR{7, 9})
+
+	// fewer LHS than return values — extras silently discarded
+	expectRun(t, `
+f := func() { return 1, 2, 3 }
+a, b := f()
+out = [a, b]
+`, Opts(), ARR{1, 2})
+
+	// more LHS than return values — extras are undefined
+	expectRun(t, `
+f := func() { return 1 }
+a, b := f()
+out = [a, is_undefined(b)]
+`, Opts(), ARR{1, true})
+
+	// single-context assignment takes first return value only
+	expectRun(t, `
+f := func() { return 10, 20 }
+out = f()
+`, Opts(), 10)
+
+	// _ := expr discards in single assignment
+	expectRun(t, `_ := 42; out = 1`, Opts(), 1)
+
+	// value, err idiom — success path
+	expectRun(t, `
+divide := func(a, b) {
+	if b == 0 { return 0, error("division by zero") }
+	return a/b, undefined
+}
+result, err := divide(10, 2)
+out = [result, is_error(err)]
+`, Opts(), ARR{5, false})
+
+	// value, err idiom — error path
+	expectRun(t, `
+divide := func(a, b) {
+	if b == 0 { return 0, error("division by zero") }
+	return a/b, undefined
+}
+result, err := divide(10, 0)
+out = [result, is_error(err)]
+`, Opts(), ARR{0, true})
+
+	// bare return gives undefined
+	expectRun(t, `
+f := func() { return }
+out = is_undefined(f())
+`, Opts(), true)
+
+	// mismatch: 2 LHS, 3 RHS is a compile error
+	expectError(t, `a, b := 1, 2, 3`, Opts(), "assignment mismatch")
+}

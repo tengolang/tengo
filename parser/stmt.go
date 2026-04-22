@@ -323,7 +323,7 @@ func (s *IncDecStmt) String() string {
 // ReturnStmt represents a return statement.
 type ReturnStmt struct {
 	ReturnPos Pos
-	Result    Expr
+	Results   []Expr
 }
 
 func (s *ReturnStmt) stmtNode() {}
@@ -335,17 +335,21 @@ func (s *ReturnStmt) Pos() Pos {
 
 // End returns the position of first character immediately after the node.
 func (s *ReturnStmt) End() Pos {
-	if s.Result != nil {
-		return s.Result.End()
+	if len(s.Results) > 0 {
+		return s.Results[len(s.Results)-1].End()
 	}
 	return s.ReturnPos + 6
 }
 
 func (s *ReturnStmt) String() string {
-	if s.Result != nil {
-		return "return " + s.Result.String()
+	if len(s.Results) == 0 {
+		return "return"
 	}
-	return "return"
+	parts := make([]string, len(s.Results))
+	for i, r := range s.Results {
+		parts[i] = r.String()
+	}
+	return "return " + strings.Join(parts, ", ")
 }
 
 // CaseClause represents a case or default clause in a switch statement.

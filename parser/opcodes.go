@@ -48,6 +48,7 @@ const (
 	OpBinaryOp                    // Binary operation
 	OpSuspend                     // Suspend VM
 	OpDup                         // Duplicate top of stack
+	OpUnpack                      // Unpack multi-value into n stack slots
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -95,6 +96,7 @@ var OpcodeNames = [...]string{
 	OpBinaryOp:      "BINARYOP",
 	OpSuspend:       "SUSPEND",
 	OpDup:           "DUP",
+	OpUnpack:        "UNPACK",
 }
 
 // OpcodeOperands is the number of operands.
@@ -142,6 +144,7 @@ var OpcodeOperands = [...][]int{
 	OpBinaryOp:      {1},
 	OpSuspend:       {},
 	OpDup:           {},
+	OpUnpack:        {1},
 }
 
 // ReadOperands reads operands from the bytecode.

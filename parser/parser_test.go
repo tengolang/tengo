@@ -1781,7 +1781,11 @@ func emptyStmt(implicit bool, pos Pos) *EmptyStmt {
 }
 
 func returnStmt(pos Pos, result Expr) *ReturnStmt {
-	return &ReturnStmt{Result: result, ReturnPos: pos}
+	var results []Expr
+	if result != nil {
+		results = []Expr{result}
+	}
+	return &ReturnStmt{Results: results, ReturnPos: pos}
 }
 
 func forStmt(
@@ -2037,8 +2041,12 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 		require.Equal(t, expected.ForPos,
 			actual.(*ForInStmt).ForPos)
 	case *ReturnStmt:
-		equalExpr(t, expected.Result,
-			actual.(*ReturnStmt).Result)
+		require.Equal(t, len(expected.Results),
+			len(actual.(*ReturnStmt).Results))
+		for i := range expected.Results {
+			equalExpr(t, expected.Results[i],
+				actual.(*ReturnStmt).Results[i])
+		}
 		require.Equal(t, expected.ReturnPos,
 			actual.(*ReturnStmt).ReturnPos)
 	case *BranchStmt:

@@ -260,7 +260,7 @@ func (v *VM) run() {
 			v.ip += 2
 			v.sp--
 			globalIndex := int(v.curInsts[v.ip]) | int(v.curInsts[v.ip-1])<<8
-			v.globals[globalIndex] = v.stack[v.sp]
+			v.globals[globalIndex] = unwrapMultiValue(v.stack[v.sp])
 		case parser.OpSetSelGlobal:
 			v.ip += 3
 			globalIndex := int(v.curInsts[v.ip-1]) | int(v.curInsts[v.ip-2])<<8
@@ -682,22 +682,50 @@ func (v *VM) run() {
 			}
 		case parser.OpReturn:
 			v.ip++
+			n := int(v.curInsts[v.ip])
 			var retVal Object
-			if int(v.curInsts[v.ip]) == 1 {
-				retVal = v.stack[v.sp-1]
-			} else {
+			switch n {
+			case 0:
 				retVal = UndefinedValue
+			case 1:
+				retVal = v.stack[v.sp-1]
+			default:
+				vals := make([]Object, n)
+				for i := 0; i < n; i++ {
+					vals[i] = v.stack[v.sp-n+i]
+				}
+				retVal = &MultiValue{Values: vals}
 			}
-			//v.sp--
 			v.framesIndex--
 			v.curFrame = &v.frames[v.framesIndex-1]
 			v.curInsts = v.curFrame.fn.Instructions
 			v.ip = v.curFrame.ip
-			//v.sp = lastFrame.basePointer - 1
 			v.sp = v.frames[v.framesIndex].basePointer
 			// skip stack overflow check because (newSP) <= (oldSP)
 			v.stack[v.sp-1] = retVal
 			//v.sp++
+		case parser.OpUnpack:
+			v.ip++
+			n := int(v.curInsts[v.ip])
+			val := v.stack[v.sp-1]
+			v.sp--
+			if mv, ok := val.(*MultiValue); ok {
+				for i := 0; i < n; i++ {
+					if i < len(mv.Values) {
+						v.stack[v.sp] = mv.Values[i]
+					} else {
+						v.stack[v.sp] = UndefinedValue
+					}
+					v.sp++
+				}
+			} else {
+				v.stack[v.sp] = val
+				v.sp++
+				for i := 1; i < n; i++ {
+					v.stack[v.sp] = UndefinedValue
+					v.sp++
+				}
+			}
 		case parser.OpDefineLocal:
 			v.ip++
 			localIndex := int(v.curInsts[v.ip])
@@ -705,7 +733,7 @@ func (v *VM) run() {
 
 			// local variables can be mutated by other actions
 			// so always store the copy of popped value
-			val := v.stack[v.sp-1]
+			val := unwrapMultiValue(v.stack[v.sp-1])
 			v.sp--
 			v.stack[sp] = val
 		case parser.OpSetLocal:
@@ -716,7 +744,7 @@ func (v *VM) run() {
 			// update pointee of v.stack[sp] instead of replacing the pointer
 			// itself. this is needed because there can be free variables
 			// referencing the same local variables.
-			val := v.stack[v.sp-1]
+			val := unwrapMultiValue(v.stack[v.sp-1])
 			v.sp--
 			if obj, ok := v.stack[sp].(*ObjectPtr); ok {
 				*obj.Value = val
@@ -808,7 +836,7 @@ func (v *VM) run() {
 		case parser.OpSetFree:
 			v.ip++
 			freeIndex := int(v.curInsts[v.ip])
-			*v.curFrame.freeVars[freeIndex].Value = v.stack[v.sp-1]
+			*v.curFrame.freeVars[freeIndex].Value = unwrapMultiValue(v.stack[v.sp-1])
 			v.sp--
 		case parser.OpGetLocalPtr:
 			v.ip++

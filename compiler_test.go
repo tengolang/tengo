@@ -1026,8 +1026,8 @@ func TestCompilerErrorReport(t *testing.T) {
 		"Compile Error: unresolved reference 'a'\n\tat test:1:1")
 	expectCompileError(t, `a := a`,
 		"Compile Error: unresolved reference 'a'\n\tat test:1:6")
-	expectCompileError(t, `a, b := 1, 2`,
-		"Compile Error: tuple assignment not allowed\n\tat test:1:1")
+	expectCompileError(t, `a, b := 1, 2, 3`,
+		"Compile Error: assignment mismatch: 2 variables but 3 values\n\tat test:1:1")
 	expectCompileError(t, `a.b := 1`,
 		"not allowed with selector")
 	expectCompileError(t, `a:=1; a:=3`,
