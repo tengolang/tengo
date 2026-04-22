@@ -317,6 +317,32 @@ func (o *Bool) GobEncode() (b []byte, err error) {
 	return
 }
 
+// BinaryOp returns another object that is the result of a given binary
+// operator and a right-hand side object.
+func (o *Bool) BinaryOp(op token.Token, rhs Object) (Object, error) {
+	switch rhs := rhs.(type) {
+	case *Bool:
+		switch op {
+		case token.And:
+			if o.value && rhs.value {
+				return TrueValue, nil
+			}
+			return FalseValue, nil
+		case token.Or:
+			if o.value || rhs.value {
+				return TrueValue, nil
+			}
+			return FalseValue, nil
+		case token.Xor:
+			if o.value != rhs.value {
+				return TrueValue, nil
+			}
+			return FalseValue, nil
+		}
+	}
+	return nil, ErrInvalidOperator
+}
+
 // BuiltinFunction represents a builtin function.
 type BuiltinFunction struct {
 	ObjectImpl
@@ -392,14 +418,61 @@ func (o *Bytes) TypeName() string {
 // BinaryOp returns another object that is the result of a given binary
 // operator and a right-hand side object.
 func (o *Bytes) BinaryOp(op token.Token, rhs Object) (Object, error) {
-	switch op {
-	case token.Add:
-		switch rhs := rhs.(type) {
-		case *Bytes:
+	switch rhs := rhs.(type) {
+	case *Bytes:
+		switch op {
+		case token.Add:
 			if len(o.Value)+len(rhs.Value) > MaxBytesLen {
 				return nil, ErrBytesLimit
 			}
 			return &Bytes{Value: append(o.Value, rhs.Value...)}, nil
+		case token.And:
+			if len(o.Value) != len(rhs.Value) {
+				return nil, ErrBytesMismatch
+			}
+			res := make([]byte, len(o.Value))
+			for i := range o.Value {
+				res[i] = o.Value[i] & rhs.Value[i]
+			}
+			return &Bytes{Value: res}, nil
+		case token.Or:
+			if len(o.Value) != len(rhs.Value) {
+				return nil, ErrBytesMismatch
+			}
+			res := make([]byte, len(o.Value))
+			for i := range o.Value {
+				res[i] = o.Value[i] | rhs.Value[i]
+			}
+			return &Bytes{Value: res}, nil
+		case token.Xor:
+			if len(o.Value) != len(rhs.Value) {
+				return nil, ErrBytesMismatch
+			}
+			res := make([]byte, len(o.Value))
+			for i := range o.Value {
+				res[i] = o.Value[i] ^ rhs.Value[i]
+			}
+			return &Bytes{Value: res}, nil
+		case token.Less:
+			if bytes.Compare(o.Value, rhs.Value) < 0 {
+				return TrueValue, nil
+			}
+			return FalseValue, nil
+		case token.LessEq:
+			if bytes.Compare(o.Value, rhs.Value) <= 0 {
+				return TrueValue, nil
+			}
+			return FalseValue, nil
+		case token.Greater:
+			if bytes.Compare(o.Value, rhs.Value) > 0 {
+				return TrueValue, nil
+			}
+			return FalseValue, nil
+		case token.GreaterEq:
+			if bytes.Compare(o.Value, rhs.Value) >= 0 {
+				return TrueValue, nil
+			}
+			return FalseValue, nil
 		}
 	}
 	return nil, ErrInvalidOperator

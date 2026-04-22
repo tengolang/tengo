@@ -184,6 +184,19 @@ func (v *VM) run() {
 				}
 				v.stack[v.sp] = res
 				v.sp++
+			case *Bytes:
+				res := make([]byte, len(x.Value))
+				for i, b := range x.Value {
+					res[i] = ^b
+				}
+				var obj Object = &Bytes{Value: res}
+				v.allocs--
+				if v.allocs == 0 {
+					v.err = ErrObjectAllocLimit
+					return
+				}
+				v.stack[v.sp] = obj
+				v.sp++
 			default:
 				v.err = fmt.Errorf("invalid operation: ^%s",
 					operand.TypeName())

@@ -715,6 +715,164 @@ func TestString_BinaryOp(t *testing.T) {
 	}
 }
 
+func TestBytes_BinaryOp_Bitwise(t *testing.T) {
+	// bytes & bytes
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x0f, 0xf0, 0xff}}, token.And,
+		&tengo.Bytes{Value: []byte{0xaa, 0x55, 0x00}},
+		&tengo.Bytes{Value: []byte{0x0a, 0x50, 0x00}})
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0xff, 0xff}}, token.And,
+		&tengo.Bytes{Value: []byte{0x00, 0x00}},
+		&tengo.Bytes{Value: []byte{0x00, 0x00}})
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0xff, 0xff}}, token.And,
+		&tengo.Bytes{Value: []byte{0xff, 0xff}},
+		&tengo.Bytes{Value: []byte{0xff, 0xff}})
+
+	// bytes | bytes
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x0f, 0xf0}}, token.Or,
+		&tengo.Bytes{Value: []byte{0xf0, 0x0f}},
+		&tengo.Bytes{Value: []byte{0xff, 0xff}})
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x00, 0x00}}, token.Or,
+		&tengo.Bytes{Value: []byte{0x00, 0x00}},
+		&tengo.Bytes{Value: []byte{0x00, 0x00}})
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0xaa, 0x55}}, token.Or,
+		&tengo.Bytes{Value: []byte{0x55, 0xaa}},
+		&tengo.Bytes{Value: []byte{0xff, 0xff}})
+
+	// bytes ^ bytes
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0xff, 0x00}}, token.Xor,
+		&tengo.Bytes{Value: []byte{0x0f, 0x0f}},
+		&tengo.Bytes{Value: []byte{0xf0, 0x0f}})
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0xaa, 0xaa}}, token.Xor,
+		&tengo.Bytes{Value: []byte{0xaa, 0xaa}},
+		&tengo.Bytes{Value: []byte{0x00, 0x00}})
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x00, 0xff}}, token.Xor,
+		&tengo.Bytes{Value: []byte{0xff, 0x00}},
+		&tengo.Bytes{Value: []byte{0xff, 0xff}})
+
+	// empty bytes operands
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{}}, token.And,
+		&tengo.Bytes{Value: []byte{}},
+		&tengo.Bytes{Value: []byte{}})
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{}}, token.Or,
+		&tengo.Bytes{Value: []byte{}},
+		&tengo.Bytes{Value: []byte{}})
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{}}, token.Xor,
+		&tengo.Bytes{Value: []byte{}},
+		&tengo.Bytes{Value: []byte{}})
+}
+
+func TestBytes_BinaryOp_BitwiseMismatch(t *testing.T) {
+	for _, op := range []token.Token{token.And, token.Or, token.Xor} {
+		_, err := (&tengo.Bytes{Value: []byte{0x01}}).BinaryOp(
+			op, &tengo.Bytes{Value: []byte{0x01, 0x02}})
+		require.Error(t, err)
+	}
+}
+
+func TestBytes_BinaryOp_Comparison(t *testing.T) {
+	// equal slices
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}}, token.Less,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.FalseValue)
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}}, token.LessEq,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.TrueValue)
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}}, token.Greater,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.FalseValue)
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}}, token.GreaterEq,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.TrueValue)
+
+	// lhs < rhs
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x01}}, token.Less,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.TrueValue)
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x01}}, token.Greater,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.FalseValue)
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x01}}, token.LessEq,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.TrueValue)
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x01}}, token.GreaterEq,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.FalseValue)
+
+	// lhs > rhs
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x03}}, token.Less,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.FalseValue)
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x03}}, token.Greater,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.TrueValue)
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x03}}, token.LessEq,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.FalseValue)
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x03}}, token.GreaterEq,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.TrueValue)
+
+	// different lengths (lexicographic: shorter prefix loses)
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01}}, token.Less,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}},
+		tengo.TrueValue)
+	testBinaryOp(t,
+		&tengo.Bytes{Value: []byte{0x01, 0x02}}, token.Greater,
+		&tengo.Bytes{Value: []byte{0x01}},
+		tengo.TrueValue)
+}
+
+func TestBool_BinaryOp(t *testing.T) {
+	// bool & bool
+	testBinaryOp(t, tengo.TrueValue, token.And, tengo.TrueValue, tengo.TrueValue)
+	testBinaryOp(t, tengo.TrueValue, token.And, tengo.FalseValue, tengo.FalseValue)
+	testBinaryOp(t, tengo.FalseValue, token.And, tengo.TrueValue, tengo.FalseValue)
+	testBinaryOp(t, tengo.FalseValue, token.And, tengo.FalseValue, tengo.FalseValue)
+
+	// bool | bool
+	testBinaryOp(t, tengo.TrueValue, token.Or, tengo.TrueValue, tengo.TrueValue)
+	testBinaryOp(t, tengo.TrueValue, token.Or, tengo.FalseValue, tengo.TrueValue)
+	testBinaryOp(t, tengo.FalseValue, token.Or, tengo.TrueValue, tengo.TrueValue)
+	testBinaryOp(t, tengo.FalseValue, token.Or, tengo.FalseValue, tengo.FalseValue)
+
+	// bool ^ bool (logical XOR — absent from && and ||)
+	testBinaryOp(t, tengo.TrueValue, token.Xor, tengo.TrueValue, tengo.FalseValue)
+	testBinaryOp(t, tengo.TrueValue, token.Xor, tengo.FalseValue, tengo.TrueValue)
+	testBinaryOp(t, tengo.FalseValue, token.Xor, tengo.TrueValue, tengo.TrueValue)
+	testBinaryOp(t, tengo.FalseValue, token.Xor, tengo.FalseValue, tengo.FalseValue)
+
+	// unsupported operators still error
+	_, err := tengo.TrueValue.BinaryOp(token.Add, tengo.TrueValue)
+	require.Error(t, err)
+	_, err = tengo.TrueValue.BinaryOp(token.Less, tengo.FalseValue)
+	require.Error(t, err)
+}
+
 func testBinaryOp(
 	t *testing.T,
 	lhs tengo.Object,

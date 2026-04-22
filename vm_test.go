@@ -921,6 +921,113 @@ func TestBytes(t *testing.T) {
 	expectRun(t, `out = bytes("abcde")[10]`, nil, tengo.UndefinedValue)
 }
 
+func TestBytesBitwiseOps(t *testing.T) {
+	// AND
+	expectRun(t, `out = bytes("\x0f\xf0") & bytes("\xaa\x55")`,
+		nil, []byte{0x0a, 0x50})
+	expectRun(t, `out = bytes("\xff\xff") & bytes("\x00\x00")`,
+		nil, []byte{0x00, 0x00})
+	expectRun(t, `out = bytes("\xff\xff") & bytes("\xff\xff")`,
+		nil, []byte{0xff, 0xff})
+
+	// OR
+	expectRun(t, `out = bytes("\x0f\xf0") | bytes("\xf0\x0f")`,
+		nil, []byte{0xff, 0xff})
+	expectRun(t, `out = bytes("\x00\x00") | bytes("\x00\x00")`,
+		nil, []byte{0x00, 0x00})
+	expectRun(t, `out = bytes("\xaa\x55") | bytes("\x55\xaa")`,
+		nil, []byte{0xff, 0xff})
+
+	// XOR
+	expectRun(t, `out = bytes("\xff\x00") ^ bytes("\x0f\x0f")`,
+		nil, []byte{0xf0, 0x0f})
+	expectRun(t, `out = bytes("\xaa\xaa") ^ bytes("\xaa\xaa")`,
+		nil, []byte{0x00, 0x00})
+	expectRun(t, `out = bytes("\x00\xff") ^ bytes("\xff\x00")`,
+		nil, []byte{0xff, 0xff})
+
+	// XOR is its own inverse
+	expectRun(t, `
+		a := bytes("secret")
+		key := bytes("\x42\x42\x42\x42\x42\x42")
+		out = (a ^ key) ^ key`,
+		nil, []byte("secret"))
+
+	// compound assignment operators
+	expectRun(t, `a := bytes("\xff\xff"); a &= bytes("\x0f\xf0"); out = a`,
+		nil, []byte{0x0f, 0xf0})
+	expectRun(t, `a := bytes("\x00\x00"); a |= bytes("\x0f\xf0"); out = a`,
+		nil, []byte{0x0f, 0xf0})
+	expectRun(t, `a := bytes("\xff\xff"); a ^= bytes("\x0f\xf0"); out = a`,
+		nil, []byte{0xf0, 0x0f})
+
+	// length mismatch returns an error
+	expectError(t, `bytes("ab") & bytes("abc")`, nil, "mismatched")
+	expectError(t, `bytes("ab") | bytes("abc")`, nil, "mismatched")
+	expectError(t, `bytes("ab") ^ bytes("abc")`, nil, "mismatched")
+}
+
+func TestBytesComparisonOps(t *testing.T) {
+	expectRun(t, `out = bytes("abc") < bytes("abd")`, nil, true)
+	expectRun(t, `out = bytes("abc") > bytes("abd")`, nil, false)
+	expectRun(t, `out = bytes("abc") <= bytes("abc")`, nil, true)
+	expectRun(t, `out = bytes("abc") >= bytes("abc")`, nil, true)
+	expectRun(t, `out = bytes("abd") > bytes("abc")`, nil, true)
+	expectRun(t, `out = bytes("abc") < bytes("abc")`, nil, false)
+	expectRun(t, `out = bytes("abc") == bytes("abc")`, nil, true)
+	expectRun(t, `out = bytes("abc") != bytes("abd")`, nil, true)
+	// different lengths — lexicographic
+	expectRun(t, `out = bytes("a") < bytes("ab")`, nil, true)
+	expectRun(t, `out = bytes("ab") > bytes("a")`, nil, true)
+}
+
+func TestBytesBitwiseComplement(t *testing.T) {
+	expectRun(t, `out = ^bytes("\x00\xff")`, nil, []byte{0xff, 0x00})
+	expectRun(t, `out = ^bytes("\xaa\x55")`, nil, []byte{0x55, 0xaa})
+	expectRun(t, `out = ^bytes("")`, nil, []byte{})
+	// double complement is identity
+	expectRun(t, `a := bytes("\xde\xad\xbe\xef"); out = ^(^a)`,
+		nil, []byte{0xde, 0xad, 0xbe, 0xef})
+}
+
+func TestBoolBitwiseOps(t *testing.T) {
+	// AND (non-short-circuit)
+	expectRun(t, `out = true & true`, nil, true)
+	expectRun(t, `out = true & false`, nil, false)
+	expectRun(t, `out = false & true`, nil, false)
+	expectRun(t, `out = false & false`, nil, false)
+
+	// OR (non-short-circuit)
+	expectRun(t, `out = true | true`, nil, true)
+	expectRun(t, `out = true | false`, nil, true)
+	expectRun(t, `out = false | true`, nil, true)
+	expectRun(t, `out = false | false`, nil, false)
+
+	// XOR (no equivalent using && or ||)
+	expectRun(t, `out = true ^ true`, nil, false)
+	expectRun(t, `out = true ^ false`, nil, true)
+	expectRun(t, `out = false ^ true`, nil, true)
+	expectRun(t, `out = false ^ false`, nil, false)
+
+	// both sides are always evaluated (unlike && and ||)
+	expectRun(t, `
+		n := 0
+		inc := func() { n++; return true }
+		false & inc()
+		out = n`, nil, 1)
+	expectRun(t, `
+		n := 0
+		inc := func() { n++; return false }
+		true | inc()
+		out = n`, nil, 1)
+
+	// compound assignment operators
+	expectRun(t, `a := true; a &= false; out = a`, nil, false)
+	expectRun(t, `a := false; a |= true; out = a`, nil, true)
+	expectRun(t, `a := true; a ^= true; out = a`, nil, false)
+	expectRun(t, `a := true; a ^= false; out = a`, nil, true)
+}
+
 func TestCall(t *testing.T) {
 	expectRun(t, `a := { b: func(x) { return x + 2 } }; out = a.b(5)`,
 		nil, 7)
