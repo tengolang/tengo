@@ -127,30 +127,42 @@ func (o ObjectImpl) CanCall() bool { return false }
 // Map, String, etc.).
 type PtrObjectImpl struct{}
 
+// TypeName returns the name of the type.
 func (o *PtrObjectImpl) TypeName() string { panic(ErrNotImplemented) }
 
+// String returns a string representation of the type's value.
 func (o *PtrObjectImpl) String() string { panic(ErrNotImplemented) }
 
+// BinaryOp returns another object that is the result of a given binary operator.
 func (o *PtrObjectImpl) BinaryOp(_ token.Token, _ Object) (Object, error) {
 	return nil, ErrInvalidOperator
 }
 
+// Copy returns a copy of the type.
 func (o *PtrObjectImpl) Copy() Object { return nil }
 
+// IsFalsy returns true if the value of the type is falsy.
 func (o *PtrObjectImpl) IsFalsy() bool { return false }
 
+// Equals returns true if the value of the type is equal to another object.
 func (o *PtrObjectImpl) Equals(_ Object) bool { return false }
 
+// IndexGet returns an element at a given index.
 func (o *PtrObjectImpl) IndexGet(_ Object) (Object, error) { return nil, ErrNotIndexable }
 
+// IndexSet sets an element at a given index.
 func (o *PtrObjectImpl) IndexSet(_, _ Object) error { return ErrNotIndexAssignable }
 
+// Iterate returns an iterator.
 func (o *PtrObjectImpl) Iterate() Iterator { return nil }
 
+// CanIterate returns whether the Object can be Iterated.
 func (o *PtrObjectImpl) CanIterate() bool { return false }
 
+// Call takes an arbitrary number of arguments and returns a return value and/or an error.
 func (o *PtrObjectImpl) Call(_ ...Object) (Object, error) { return nil, nil }
 
+// CanCall returns whether the Object can be Called.
 func (o *PtrObjectImpl) CanCall() bool { return false }
 
 // Array represents an array of objects.
