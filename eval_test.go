@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/d5/tengo/v2"
-	"github.com/d5/tengo/v2/require"
+	"github.com/ganehag/tengo/v3"
+	"github.com/ganehag/tengo/v3/require"
 )
 
 func TestEval(t *testing.T) {

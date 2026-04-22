@@ -1,3 +1,3 @@
-module github.com/d5/tengo/v2
+module github.com/ganehag/tengo/v3
 
 go 1.13

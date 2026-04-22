@@ -1,0 +1,41 @@
+fmt := import("fmt")                                                                                                                                  
+
+x := 2
+                                                                                                                                                            
+switch x {                                                                                                                                                
+  case 1:                                                                                                                                                   
+      fmt.println("one")                                                                                                                                    
+  case 2, 3:                                                                                                                                                
+      fmt.println("two or three")                                                                                                                           
+  default:                                                                                                                                                  
+      fmt.println("something else")                                                                                                                         
+}   
+
+// tagless switch (acts like if/else)                                                                                                                     
+y := 15
+  switch {                                                                                                                                                  
+  case y < 10:    
+      fmt.println("small")
+  case y < 20:                                                                                                                                              
+      fmt.println("medium")
+  default:                                                                                                                                                  
+      fmt.println("large")
+}
+
+switch z := 7; {
+  case z % 2 == 0:                                                                                                                                          
+      fmt.println("even")
+  default:                                                                                                                                                  
+      fmt.println("odd")
+}
+
+// fallthrough
+switch 3 {
+  case 1:
+      fmt.println("one")                                                                                                                                    
+      fallthrough
+  case 2:                                                                                                                                                   
+      fmt.println("two (via fallthrough)")
+  case 3:
+      fmt.println("three")
+}  

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/d5/tengo/v2/parser"
-	"github.com/d5/tengo/v2/token"
+	"github.com/ganehag/tengo/v3/parser"
+	"github.com/ganehag/tengo/v3/token"
 )
 
 // frame represents a function call frame.

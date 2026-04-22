@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/d5/tengo/v2/token"
+	"github.com/ganehag/tengo/v3/token"
 )
 
 type bailout struct{}
