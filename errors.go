@@ -35,6 +35,10 @@ var (
 	// the limit.
 	ErrBytesLimit = errors.New("exceeding bytes size limit")
 
+	// ErrBytesMismatch represents an error where a binary operation is applied
+	// to two Bytes values of different lengths.
+	ErrBytesMismatch = errors.New("mismatched bytes lengths")
+
 	// ErrStringLimit represents an error where the size of string value
 	// exceeds the limit.
 	ErrStringLimit = errors.New("exceeding string size limit")
