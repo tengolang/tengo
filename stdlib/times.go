@@ -22,24 +22,24 @@ var timesModule = map[string]tengo.Object{
 	"format_stamp_milli":  &tengo.String{Value: time.StampMilli},
 	"format_stamp_micro":  &tengo.String{Value: time.StampMicro},
 	"format_stamp_nano":   &tengo.String{Value: time.StampNano},
-	"nanosecond":          &tengo.Int{Value: int64(time.Nanosecond)},
-	"microsecond":         &tengo.Int{Value: int64(time.Microsecond)},
-	"millisecond":         &tengo.Int{Value: int64(time.Millisecond)},
-	"second":              &tengo.Int{Value: int64(time.Second)},
-	"minute":              &tengo.Int{Value: int64(time.Minute)},
-	"hour":                &tengo.Int{Value: int64(time.Hour)},
-	"january":             &tengo.Int{Value: int64(time.January)},
-	"february":            &tengo.Int{Value: int64(time.February)},
-	"march":               &tengo.Int{Value: int64(time.March)},
-	"april":               &tengo.Int{Value: int64(time.April)},
-	"may":                 &tengo.Int{Value: int64(time.May)},
-	"june":                &tengo.Int{Value: int64(time.June)},
-	"july":                &tengo.Int{Value: int64(time.July)},
-	"august":              &tengo.Int{Value: int64(time.August)},
-	"september":           &tengo.Int{Value: int64(time.September)},
-	"october":             &tengo.Int{Value: int64(time.October)},
-	"november":            &tengo.Int{Value: int64(time.November)},
-	"december":            &tengo.Int{Value: int64(time.December)},
+	"nanosecond":          tengo.Int{Value: int64(time.Nanosecond)},
+	"microsecond":         tengo.Int{Value: int64(time.Microsecond)},
+	"millisecond":         tengo.Int{Value: int64(time.Millisecond)},
+	"second":              tengo.Int{Value: int64(time.Second)},
+	"minute":              tengo.Int{Value: int64(time.Minute)},
+	"hour":                tengo.Int{Value: int64(time.Hour)},
+	"january":             tengo.Int{Value: int64(time.January)},
+	"february":            tengo.Int{Value: int64(time.February)},
+	"march":               tengo.Int{Value: int64(time.March)},
+	"april":               tengo.Int{Value: int64(time.April)},
+	"may":                 tengo.Int{Value: int64(time.May)},
+	"june":                tengo.Int{Value: int64(time.June)},
+	"july":                tengo.Int{Value: int64(time.July)},
+	"august":              tengo.Int{Value: int64(time.August)},
+	"september":           tengo.Int{Value: int64(time.September)},
+	"october":             tengo.Int{Value: int64(time.October)},
+	"november":            tengo.Int{Value: int64(time.November)},
+	"december":            tengo.Int{Value: int64(time.December)},
 	"sleep": &tengo.UserFunction{
 		Name:  "sleep",
 		Value: timesSleep,
@@ -233,7 +233,7 @@ func timesParseDuration(args ...tengo.Object) (
 		return
 	}
 
-	ret = &tengo.Int{Value: int64(dur)}
+	ret = tengo.Int{Value: int64(dur)}
 
 	return
 }
@@ -257,7 +257,7 @@ func timesSince(args ...tengo.Object) (
 		return
 	}
 
-	ret = &tengo.Int{Value: int64(time.Since(t1))}
+	ret = tengo.Int{Value: int64(time.Since(t1))}
 
 	return
 }
@@ -281,7 +281,7 @@ func timesUntil(args ...tengo.Object) (
 		return
 	}
 
-	ret = &tengo.Int{Value: int64(time.Until(t1))}
+	ret = tengo.Int{Value: int64(time.Until(t1))}
 
 	return
 }
@@ -305,7 +305,7 @@ func timesDurationHours(args ...tengo.Object) (
 		return
 	}
 
-	ret = &tengo.Float{Value: time.Duration(i1).Hours()}
+	ret = tengo.Float{Value: time.Duration(i1).Hours()}
 
 	return
 }
@@ -329,7 +329,7 @@ func timesDurationMinutes(args ...tengo.Object) (
 		return
 	}
 
-	ret = &tengo.Float{Value: time.Duration(i1).Minutes()}
+	ret = tengo.Float{Value: time.Duration(i1).Minutes()}
 
 	return
 }
@@ -353,7 +353,7 @@ func timesDurationNanoseconds(args ...tengo.Object) (
 		return
 	}
 
-	ret = &tengo.Int{Value: time.Duration(i1).Nanoseconds()}
+	ret = tengo.Int{Value: time.Duration(i1).Nanoseconds()}
 
 	return
 }
@@ -377,7 +377,7 @@ func timesDurationSeconds(args ...tengo.Object) (
 		return
 	}
 
-	ret = &tengo.Float{Value: time.Duration(i1).Seconds()}
+	ret = tengo.Float{Value: time.Duration(i1).Seconds()}
 
 	return
 }
@@ -667,7 +667,7 @@ func timesSub(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	ret = &tengo.Int{Value: int64(t1.Sub(t2))}
+	ret = tengo.Int{Value: int64(t1.Sub(t2))}
 
 	return
 }
@@ -809,7 +809,7 @@ func timesTimeYear(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	ret = &tengo.Int{Value: int64(t1.Year())}
+	ret = tengo.Int{Value: int64(t1.Year())}
 
 	return
 }
@@ -830,7 +830,7 @@ func timesTimeMonth(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	ret = &tengo.Int{Value: int64(t1.Month())}
+	ret = tengo.Int{Value: int64(t1.Month())}
 
 	return
 }
@@ -851,7 +851,7 @@ func timesTimeDay(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	ret = &tengo.Int{Value: int64(t1.Day())}
+	ret = tengo.Int{Value: int64(t1.Day())}
 
 	return
 }
@@ -872,7 +872,7 @@ func timesTimeWeekday(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	ret = &tengo.Int{Value: int64(t1.Weekday())}
+	ret = tengo.Int{Value: int64(t1.Weekday())}
 
 	return
 }
@@ -893,7 +893,7 @@ func timesTimeHour(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	ret = &tengo.Int{Value: int64(t1.Hour())}
+	ret = tengo.Int{Value: int64(t1.Hour())}
 
 	return
 }
@@ -914,7 +914,7 @@ func timesTimeMinute(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	ret = &tengo.Int{Value: int64(t1.Minute())}
+	ret = tengo.Int{Value: int64(t1.Minute())}
 
 	return
 }
@@ -935,7 +935,7 @@ func timesTimeSecond(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	ret = &tengo.Int{Value: int64(t1.Second())}
+	ret = tengo.Int{Value: int64(t1.Second())}
 
 	return
 }
@@ -959,7 +959,7 @@ func timesTimeNanosecond(args ...tengo.Object) (
 		return
 	}
 
-	ret = &tengo.Int{Value: int64(t1.Nanosecond())}
+	ret = tengo.Int{Value: int64(t1.Nanosecond())}
 
 	return
 }
@@ -980,7 +980,7 @@ func timesTimeUnix(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	ret = &tengo.Int{Value: t1.Unix()}
+	ret = tengo.Int{Value: t1.Unix()}
 
 	return
 }
@@ -1004,7 +1004,7 @@ func timesTimeUnixNano(args ...tengo.Object) (
 		return
 	}
 
-	ret = &tengo.Int{Value: t1.UnixNano()}
+	ret = tengo.Int{Value: t1.UnixNano()}
 
 	return
 }

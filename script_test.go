@@ -25,12 +25,12 @@ func TestScript_Add(t *testing.T) {
 		func(args ...tengo.Object) (ret tengo.Object, err error) {
 			if len(args) > 0 {
 				switch arg := args[0].(type) {
-				case *tengo.Int:
-					return &tengo.Int{Value: arg.Value + 1}, nil
+				case tengo.Int:
+					return tengo.Int{Value: arg.Value + 1}, nil
 				}
 			}
 
-			return &tengo.Int{Value: 0}, nil
+			return tengo.Int{Value: 0}, nil
 		}))
 	c, err := s.Compile()
 	require.NoError(t, err)
@@ -178,7 +178,7 @@ e := mod1.double(s)
 				err error,
 			) {
 				arg0, _ := tengo.ToInt64(args[0])
-				ret = &tengo.Int{Value: arg0 * 2}
+				ret = tengo.Int{Value: arg0 * 2}
 				return
 			},
 		},
@@ -252,7 +252,7 @@ func (o *Counter) BinaryOp(
 		case token.Sub:
 			return &Counter{value: o.value - rhs.value}, nil
 		}
-	case *tengo.Int:
+	case tengo.Int:
 		switch op {
 		case token.Add:
 			return &Counter{value: o.value + rhs.Value}, nil
@@ -281,7 +281,7 @@ func (o *Counter) Copy() tengo.Object {
 }
 
 func (o *Counter) Call(_ ...tengo.Object) (tengo.Object, error) {
-	return &tengo.Int{Value: o.value}, nil
+	return tengo.Int{Value: o.value}, nil
 }
 
 func (o *Counter) CanCall() bool {
@@ -493,7 +493,7 @@ func TestCompiled_CustomObject(t *testing.T) {
 // customNumber is a user defined object that can compare to tengo.Int
 // very shitty implementation, just to test that token.Less and token.Greater in BinaryOp works
 type customNumber struct {
-	tengo.ObjectImpl
+	tengo.PtrObjectImpl
 	value int64
 }
 
@@ -506,14 +506,14 @@ func (n *customNumber) String() string {
 }
 
 func (n *customNumber) BinaryOp(op token.Token, rhs tengo.Object) (tengo.Object, error) {
-	tengoInt, ok := rhs.(*tengo.Int)
+	tengoInt, ok := rhs.(tengo.Int)
 	if !ok {
 		return nil, tengo.ErrInvalidOperator
 	}
 	return n.binaryOpInt(op, tengoInt)
 }
 
-func (n *customNumber) binaryOpInt(op token.Token, rhs *tengo.Int) (tengo.Object, error) {
+func (n *customNumber) binaryOpInt(op token.Token, rhs tengo.Int) (tengo.Object, error) {
 	i := n.value
 
 	switch op {

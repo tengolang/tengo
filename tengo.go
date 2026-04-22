@@ -81,16 +81,16 @@ func ToString(o Object) (v string, ok bool) {
 // ToInt will try to convert object o to int value.
 func ToInt(o Object) (v int, ok bool) {
 	switch o := o.(type) {
-	case *Int:
+	case Int:
 		v = int(o.Value)
 		ok = true
-	case *Float:
+	case Float:
 		v = int(o.Value)
 		ok = true
-	case *Char:
+	case Char:
 		v = int(o.Value)
 		ok = true
-	case *Bool:
+	case Bool:
 		if o == TrueValue {
 			v = 1
 		}
@@ -108,16 +108,16 @@ func ToInt(o Object) (v int, ok bool) {
 // ToInt64 will try to convert object o to int64 value.
 func ToInt64(o Object) (v int64, ok bool) {
 	switch o := o.(type) {
-	case *Int:
+	case Int:
 		v = o.Value
 		ok = true
-	case *Float:
+	case Float:
 		v = int64(o.Value)
 		ok = true
-	case *Char:
+	case Char:
 		v = int64(o.Value)
 		ok = true
-	case *Bool:
+	case Bool:
 		if o == TrueValue {
 			v = 1
 		}
@@ -135,10 +135,10 @@ func ToInt64(o Object) (v int64, ok bool) {
 // ToFloat64 will try to convert object o to float64 value.
 func ToFloat64(o Object) (v float64, ok bool) {
 	switch o := o.(type) {
-	case *Int:
+	case Int:
 		v = float64(o.Value)
 		ok = true
-	case *Float:
+	case Float:
 		v = o.Value
 		ok = true
 	case *String:
@@ -161,10 +161,10 @@ func ToBool(o Object) (v bool, ok bool) {
 // ToRune will try to convert object o to rune value.
 func ToRune(o Object) (v rune, ok bool) {
 	switch o := o.(type) {
-	case *Int:
+	case Int:
 		v = rune(o.Value)
 		ok = true
-	case *Char:
+	case Char:
 		v = o.Value
 		ok = true
 	}
@@ -190,7 +190,7 @@ func ToTime(o Object) (v time.Time, ok bool) {
 	case *Time:
 		v = o.Value
 		ok = true
-	case *Int:
+	case Int:
 		v = time.Unix(o.Value, 0)
 		ok = true
 	}
@@ -200,15 +200,15 @@ func ToTime(o Object) (v time.Time, ok bool) {
 // ToInterface attempts to convert an object o to an interface{} value
 func ToInterface(o Object) (res interface{}) {
 	switch o := o.(type) {
-	case *Int:
+	case Int:
 		res = o.Value
 	case *String:
 		res = o.Value
-	case *Float:
+	case Float:
 		res = o.Value
-	case *Bool:
+	case Bool:
 		res = o == TrueValue
-	case *Char:
+	case Char:
 		res = o.Value
 	case *Bytes:
 		res = o.Value
@@ -255,20 +255,20 @@ func FromInterface(v interface{}) (Object, error) {
 		}
 		return &String{Value: v}, nil
 	case int64:
-		return &Int{Value: v}, nil
+		return Int{Value: v}, nil
 	case int:
-		return &Int{Value: int64(v)}, nil
+		return Int{Value: int64(v)}, nil
 	case bool:
 		if v {
 			return TrueValue, nil
 		}
 		return FalseValue, nil
 	case rune:
-		return &Char{Value: v}, nil
+		return Char{Value: v}, nil
 	case byte:
-		return &Char{Value: rune(v)}, nil
+		return Char{Value: rune(v)}, nil
 	case float64:
-		return &Float{Value: v}, nil
+		return Float{Value: v}, nil
 	case []byte:
 		if len(v) > MaxBytesLen {
 			return nil, ErrBytesLimit

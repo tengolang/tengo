@@ -216,10 +216,10 @@ func (d *decodeState) literal() (tengo.Object, error) {
 		}
 		if isFloat {
 			n, _ := strconv.ParseFloat(string(item), 10)
-			return &tengo.Float{Value: n}, nil
+			return tengo.Float{Value: n}, nil
 		}
 		n, _ := strconv.ParseInt(string(item), 10, 64)
-		return &tengo.Int{Value: n}, nil
+		return tengo.Int{Value: n}, nil
 	}
 }
 
