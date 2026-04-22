@@ -1506,7 +1506,7 @@ func TestCompiler_ConcurrentParallelExecution_OutFromConstructor(t *testing.T) {
 			"get": &tengo.UserFunction{
 				Value: func(args ...tengo.Object) (tengo.Object, error) {
 					return &tengo.Map{Value: map[string]tengo.Object{
-						"Value": &tengo.Int{Value: tengoMapValue},
+						"Value": tengo.Int{Value: tengoMapValue},
 					}}, nil
 				},
 			},
@@ -1574,7 +1574,7 @@ func TestCompiler_ConcurrentParallelExecution_OutGlobal(t *testing.T) {
 			"get": &tengo.UserFunction{
 				Value: func(args ...tengo.Object) (tengo.Object, error) {
 					return &tengo.Map{Value: map[string]tengo.Object{
-						"Value": &tengo.Int{Value: tengoMapValue},
+						"Value": tengo.Int{Value: tengoMapValue},
 					}}, nil
 				},
 			},
@@ -1641,7 +1641,7 @@ func TestCompiler_ConcurrentParallelExecution_OutGlobalTransit(t *testing.T) {
 			"get": &tengo.UserFunction{
 				Value: func(args ...tengo.Object) (tengo.Object, error) {
 					return &tengo.Map{Value: map[string]tengo.Object{
-						"Value": &tengo.Int{Value: tengoMapValue},
+						"Value": tengo.Int{Value: tengoMapValue},
 					}}, nil
 				},
 			},
@@ -1971,8 +1971,8 @@ func objectsArray(o ...tengo.Object) []tengo.Object {
 	return o
 }
 
-func intObject(v int64) *tengo.Int {
-	return &tengo.Int{Value: v}
+func intObject(v int64) tengo.Int {
+	return tengo.Int{Value: v}
 }
 
 func stringObject(v string) *tengo.String {
