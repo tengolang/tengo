@@ -9,11 +9,13 @@ import (
 
 var (
 	// MaxStringLen is the maximum byte-length for string value. Note this
-	// limit applies to all compiler/VM instances in the process.
+	// limit applies to all compiler/VM instances in the process. It must not
+	// be changed after the first VM starts executing; doing so is a data race.
 	MaxStringLen = 2147483647
 
 	// MaxBytesLen is the maximum length for bytes value. Note this limit
-	// applies to all compiler/VM instances in the process.
+	// applies to all compiler/VM instances in the process. It must not be
+	// changed after the first VM starts executing; doing so is a data race.
 	MaxBytesLen = 2147483647
 )
 

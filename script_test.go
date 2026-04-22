@@ -665,3 +665,62 @@ data["b"] = 2
 	require.Equal(t, 1001, clone.Get("count").Int())
 	require.Equal(t, 2, len(clone.Get("data").Map()))
 }
+
+func TestCompiledConcurrentRun(t *testing.T) {
+	// Concurrent Run() calls on the same Compiled are serialized by its
+	// internal mutex because each run writes output back into the shared
+	// globals slice. Verify that concurrent callers all succeed without
+	// data races and that the final state is consistent.
+	s := tengo.NewScript([]byte(`out := x + 1`))
+	_ = s.Add("x", 41)
+	compiled, err := s.Compile()
+	require.NoError(t, err)
+
+	const goroutines = 50
+	var wg sync.WaitGroup
+	errs := make([]error, goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			errs[idx] = compiled.Run()
+		}(i)
+	}
+	wg.Wait()
+
+	for i, e := range errs {
+		require.NoError(t, e, "goroutine %d failed", i)
+	}
+	// All runs share the same globals; final value reflects last serialized run.
+	require.Equal(t, 42, compiled.Get("out").Int())
+}
+
+func TestCompiledCloneConcurrentRun(t *testing.T) {
+	// Verify that clones derived from the same Compiled can run concurrently
+	// with independent globals and no data races.
+	s := tengo.NewScript([]byte(`out := x + 1`))
+	_ = s.Add("x", 0)
+	compiled, err := s.Compile()
+	require.NoError(t, err)
+
+	const goroutines = 50
+	results := make([]int, goroutines)
+	var wg sync.WaitGroup
+
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			c := compiled.Clone()
+			_ = c.Set("x", idx)
+			require.NoError(t, c.Run())
+			results[idx] = c.Get("out").Int()
+		}(i)
+	}
+	wg.Wait()
+
+	for i, got := range results {
+		require.Equal(t, i+1, got, "clone %d: expected %d got %d", i, i+1, got)
+	}
+}

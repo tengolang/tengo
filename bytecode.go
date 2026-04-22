@@ -84,6 +84,9 @@ func (b *Bytecode) FormatConstants() (output []string) {
 // ReplaceBuiltinModule replaces a builtin module with a new one.
 // This is helpful for concurrent script execution, when builtin module does not support
 // concurrency and you need to provide custom module instance for each script clone.
+//
+// This method mutates the Bytecode in place and is not safe for concurrent use.
+// Prefer Compiled.ReplaceBuiltinModule, which handles copy-on-write and locking.
 func (b *Bytecode) ReplaceBuiltinModule(name string, attrs map[string]Object) {
 	for i, c := range b.Constants {
 		switch c := c.(type) {
@@ -97,6 +100,8 @@ func (b *Bytecode) ReplaceBuiltinModule(name string, attrs map[string]Object) {
 }
 
 // Decode reads Bytecode data from the reader.
+// Must only be called before the Bytecode is handed to any VM or Compiled
+// instance. Calling Decode on a Bytecode that is already in use is a data race.
 func (b *Bytecode) Decode(r io.Reader, modules *ModuleMap) error {
 	if modules == nil {
 		modules = NewModuleMap()
@@ -126,7 +131,10 @@ func (b *Bytecode) Decode(r io.Reader, modules *ModuleMap) error {
 }
 
 // RemoveDuplicates finds and remove the duplicate values in Constants.
-// Note this function mutates Bytecode.
+// Note this function mutates Bytecode, including patching instruction bytes
+// in place. Must only be called before the Bytecode is handed to any VM or
+// Compiled instance. Calling RemoveDuplicates on a Bytecode that is already
+// in use is a data race.
 func (b *Bytecode) RemoveDuplicates() {
 	var deduped []Object
 

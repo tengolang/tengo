@@ -205,6 +205,12 @@ type Compiled struct {
 }
 
 // Run executes the compiled script in the virtual machine.
+//
+// Concurrent calls to Run on the same Compiled are serialized: each run
+// writes its output variables back into the shared globals slice, so only
+// one execution can be in flight at a time. For true concurrent execution
+// with isolated state, call Clone() once per goroutine and run each clone
+// independently.
 func (c *Compiled) Run() error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -214,6 +220,7 @@ func (c *Compiled) Run() error {
 }
 
 // RunContext is like Run but includes a context.
+// See Run() for concurrency notes.
 func (c *Compiled) RunContext(ctx context.Context) (err error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -257,6 +264,12 @@ func (c *Compiled) Size() int64 {
 
 // Clone creates a new copy of Compiled. Cloned copies are safe for concurrent
 // use by multiple goroutines.
+//
+// The clone shares the underlying Bytecode with the original. This is safe
+// because the VM never writes to Bytecode during execution. Do not call
+// Bytecode mutation methods (ReplaceBuiltinModule, RemoveDuplicates, Decode)
+// directly on the shared *Bytecode after clones have been created; use the
+// Compiled.ReplaceBuiltinModule wrapper instead, which handles copy-on-write.
 func (c *Compiled) Clone() *Compiled {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
