@@ -28,10 +28,11 @@ type VM struct {
 	curFrame    *frame
 	curInsts    []byte
 	ip          int
-	aborting    int64
-	maxAllocs   int64
-	allocs      int64
-	err         error
+	aborting     int64
+	maxAllocs    int64
+	allocs       int64
+	err          error
+	resumeDepth  int // non-zero: run() stops when framesIndex drops to this value
 }
 
 // NewVM creates a VM.
@@ -643,6 +644,38 @@ func (v *VM) run() {
 				v.ip = -1
 				v.framesIndex++
 				v.sp = v.sp - numArgs + callee.NumLocals
+			} else if callee, ok := value.(*InteropFunction); ok {
+				var args []Object
+				args = append(args, v.stack[v.sp-numArgs:v.sp]...)
+				ret, e := callee.Value(v, args...)
+				v.sp -= numArgs + 1
+				if e != nil {
+					if e == ErrWrongNumArguments {
+						v.err = fmt.Errorf(
+							"wrong number of arguments in call to '%s'",
+							value.TypeName())
+						return
+					}
+					if e, ok := e.(ErrInvalidArgumentType); ok {
+						v.err = fmt.Errorf(
+							"invalid type for argument '%s' in call to '%s': "+
+								"expected %s, found %s",
+							e.Name, value.TypeName(), e.Expected, e.Found)
+						return
+					}
+					v.err = e
+					return
+				}
+				if ret == nil {
+					ret = UndefinedValue
+				}
+				v.allocs--
+				if v.allocs == 0 {
+					v.err = ErrObjectAllocLimit
+					return
+				}
+				v.stack[v.sp] = ret
+				v.sp++
 			} else {
 				var args []Object
 				args = append(args, v.stack[v.sp-numArgs:v.sp]...)
@@ -703,6 +736,9 @@ func (v *VM) run() {
 			v.sp = v.frames[v.framesIndex].basePointer
 			// skip stack overflow check because (newSP) <= (oldSP)
 			v.stack[v.sp-1] = retVal
+			if v.resumeDepth != 0 && v.framesIndex == v.resumeDepth {
+				return
+			}
 			//v.sp++
 		case parser.OpUnpack:
 			v.ip++
@@ -918,6 +954,63 @@ func (v *VM) run() {
 			return
 		}
 	}
+}
+
+// RunCompiledFunction calls a CompiledFunction from within an InteropFunc,
+// re-entering the running VM. It must only be called during an active VM
+// execution (i.e. from inside an InteropFunc invoked by the VM).
+func (v *VM) RunCompiledFunction(fn *CompiledFunction, args ...Object) (Object, error) {
+	numArgs := len(args)
+	if numArgs != fn.NumParameters {
+		return nil, fmt.Errorf("wrong number of arguments: want=%d, got=%d",
+			fn.NumParameters, numArgs)
+	}
+	if v.framesIndex >= MaxFrames {
+		return nil, ErrStackOverflow
+	}
+
+	savedSP := v.sp
+
+	// Push a placeholder that OpReturn will overwrite with the return value
+	// (mirrors the callee slot in normal OpCall).
+	v.stack[v.sp] = UndefinedValue
+	v.sp++
+	for _, arg := range args {
+		v.stack[v.sp] = arg
+		v.sp++
+	}
+
+	// Save the current frame's ip so OpReturn can restore it correctly.
+	v.curFrame.ip = v.ip
+
+	// Tell run() to stop when this function returns to the current depth.
+	prevDepth := v.resumeDepth
+	v.resumeDepth = v.framesIndex
+
+	v.curFrame = &v.frames[v.framesIndex]
+	v.curFrame.fn = fn
+	v.curFrame.freeVars = fn.Free
+	v.curFrame.basePointer = v.sp - numArgs
+	v.curInsts = fn.Instructions
+	v.ip = -1
+	v.framesIndex++
+	v.sp = v.curFrame.basePointer + fn.NumLocals
+
+	v.run()
+
+	v.resumeDepth = prevDepth
+
+	if v.err != nil {
+		err := v.err
+		v.err = nil
+		v.sp = savedSP
+		return nil, err
+	}
+
+	// OpReturn placed the return value at sp-1; pop the placeholder slot.
+	ret := v.stack[v.sp-1]
+	v.sp--
+	return ret, nil
 }
 
 // IsStackEmpty tests if the stack is empty or not.

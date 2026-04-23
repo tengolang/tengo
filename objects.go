@@ -1628,6 +1628,40 @@ func (o *Undefined) Value() Object {
 	return o
 }
 
+// InteropFunc is like CallableFunc but also receives the running VM, allowing
+// the function to call back into Tengo CompiledFunctions via VM.RunCompiledFunction.
+type InteropFunc func(vm *VM, args ...Object) (Object, error)
+
+// InteropFunction wraps an InteropFunc as a Tengo Object. Use it instead of
+// UserFunction when the Go callback needs to invoke a Tengo closure that was
+// passed as an argument.
+type InteropFunction struct {
+	PtrObjectImpl
+	Name  string
+	Value InteropFunc
+}
+
+// TypeName returns the name of the type.
+func (o *InteropFunction) TypeName() string { return "interop-function:" + o.Name }
+
+func (o *InteropFunction) String() string { return "<interop-function>" }
+
+// Copy returns a copy of the type.
+func (o *InteropFunction) Copy() Object { return &InteropFunction{Value: o.Value, Name: o.Name} }
+
+// Equals returns true if the value of the type is equal to the value of
+// another object.
+func (o *InteropFunction) Equals(_ Object) bool { return false }
+
+// CanCall returns whether the Object can be Called.
+func (o *InteropFunction) CanCall() bool { return true }
+
+// Call is a placeholder; InteropFunction requires VM context and is only
+// callable from within the VM (via OpCall). Calling it directly returns an error.
+func (o *InteropFunction) Call(_ ...Object) (Object, error) {
+	return nil, fmt.Errorf("interop function %q requires VM context", o.Name)
+}
+
 // UserFunction represents a user function.
 type UserFunction struct {
 	PtrObjectImpl

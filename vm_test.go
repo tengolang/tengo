@@ -4285,3 +4285,80 @@ out = is_undefined(f())
 	// mismatch: 2 LHS, 3 RHS is a compile error
 	expectError(t, `a, b := 1, 2, 3`, Opts(), "assignment mismatch")
 }
+
+func TestInteropFunction(t *testing.T) {
+	// Helper that builds a module with a single InteropFunction.
+	// The function receives a Tengo closure and calls it via RunCompiledFunction,
+	// storing the result in the captured *tengo.Object pointer.
+	makeCallModule := func(name string, result *tengo.Object, callArgs ...tengo.Object) *tengo.BuiltinModule {
+		return &tengo.BuiltinModule{
+			Attrs: map[string]tengo.Object{
+				name: &tengo.InteropFunction{
+					Name: name,
+					Value: func(vm *tengo.VM, args ...tengo.Object) (tengo.Object, error) {
+						if len(args) != 1 {
+							return nil, fmt.Errorf("want 1 arg, got %d", len(args))
+						}
+						fn, ok := args[0].(*tengo.CompiledFunction)
+						if !ok {
+							return nil, fmt.Errorf("arg must be compiled function, got %T", args[0])
+						}
+						ret, err := vm.RunCompiledFunction(fn, callArgs...)
+						if err != nil {
+							return nil, err
+						}
+						*result = ret
+						return tengo.UndefinedValue, nil
+					},
+				},
+			},
+		}
+	}
+
+	// Basic: pass arguments, get return value.
+	var got1 tengo.Object
+	mod1 := makeCallModule("call", &got1, tengo.Int{Value: 6}, tengo.Int{Value: 7})
+	expectRun(t, `
+m := import("m")
+m.call(func(a, b) { return a * b })
+out = 0
+`, Opts().Module("m", mod1).Skip2ndPass(), 0)
+	require.Equal(t, tengo.Int{Value: 42}, got1)
+
+	// Closure: function captures a free variable from the enclosing scope.
+	var got2 tengo.Object
+	mod2 := makeCallModule("call", &got2)
+	expectRun(t, `
+m := import("m")
+factor := 10
+mul := func() { return factor * 3 }
+m.call(mul)
+out = 0
+`, Opts().Module("m", mod2).Skip2ndPass(), 0)
+	require.Equal(t, tengo.Int{Value: 30}, got2)
+
+	// Error propagation: error inside the closure is returned to Go.
+	var gotErr tengo.Object
+	modErr := &tengo.BuiltinModule{
+		Attrs: map[string]tengo.Object{
+			"call": &tengo.InteropFunction{
+				Name: "call",
+				Value: func(vm *tengo.VM, args ...tengo.Object) (tengo.Object, error) {
+					fn := args[0].(*tengo.CompiledFunction)
+					ret, err := vm.RunCompiledFunction(fn)
+					if err != nil {
+						return nil, err
+					}
+					gotErr = ret
+					return tengo.UndefinedValue, nil
+				},
+			},
+		},
+	}
+	expectRun(t, `
+m := import("m")
+m.call(func() { return 99 })
+out = 0
+`, Opts().Module("m", modErr).Skip2ndPass(), 0)
+	require.Equal(t, tengo.Int{Value: 99}, gotErr)
+}

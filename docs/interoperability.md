@@ -3,6 +3,7 @@
 ## Table of Contents
 
 - [Using Scripts](#using-scripts)
+  - [Calling a Tengo Function from Go](#calling-a-tengo-function-from-go)
   - [Type Conversion Table](#type-conversion-table)
   - [User Types](#user-types)
 - [Sandbox Environments](#sandbox-environments)
@@ -102,7 +103,68 @@ full list of variable value functions.
 Value of the global variables can be replaced using
 [Compiled.Set](https://godoc.org/github.com/d5/tengo#Compiled.Set) function.
 But it will return an error if you try to set the value of un-defined global
-variables _(e.g. trying to set the value of `x` in the example)_.  
+variables _(e.g. trying to set the value of `x` in the example)_.
+
+### Calling a Tengo Function from Go
+
+Tengo doesn't have a direct "call function by name" API, but you can invoke
+a named function defined in a script by appending an assignment to a reserved
+result variable before compilation.
+
+The key is to reserve both the argument and result variable names with
+`Script.Add` _before_ compiling, so the names are guaranteed to exist in the
+global scope regardless of what the script defines.
+
+```golang
+import (
+    "fmt"
+
+    "github.com/ganehag/tengo/v3"
+)
+
+const (
+    resultVar = "__result"
+    arg0Var   = "__arg0"
+)
+
+var source = `
+greetUser := func(name) {
+    return "Hello, " + name
+}
+`
+
+func main() {
+    s := tengo.NewScript([]byte(source + "\n" + resultVar + " := greetUser(" + arg0Var + ")"))
+    _ = s.Add(resultVar, nil)
+    _ = s.Add(arg0Var, "")
+
+    compiled, err := s.Compile()
+    if err != nil {
+        panic(err)
+    }
+
+    // Clone before each run to avoid sharing state between calls.
+    c := compiled.Clone()
+    if err := c.Set(arg0Var, "Alice"); err != nil {
+        panic(err)
+    }
+    if err := c.Run(); err != nil {
+        panic(err)
+    }
+    fmt.Println(c.Get(resultVar).String()) // Hello, Alice
+}
+```
+
+Because the bytecode is compiled once and cloned per call, the cost of
+invoking the function repeatedly is just `Clone` + `Set` + `Run` — no
+re-compilation.
+
+**Limitations:**
+- All arguments must be expressible as pre-defined variables (see
+  [Type Conversion Table](#type-conversion-table)).
+- The function must be defined at the top level of the script.
+- For functions with multiple arguments, add one reserved variable per
+  argument slot.
 
 ### Type Conversion Table
 
