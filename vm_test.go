@@ -4421,3 +4421,99 @@ for i := 0; i < 1000000; i++ {
 	require.False(t, vm.IsPaused())
 	require.Equal(t, int64(1000000), compiled.Get("count").Int64())
 }
+
+func TestVMHookCallReturn(t *testing.T) {
+	src := `
+add := func(a, b) { return a + b }
+mul := func(a, b) { return a * b }
+x := add(2, 3)
+y := mul(x, 4)
+`
+	s := tengo.NewScript([]byte(src))
+	compiled, err := s.Compile()
+	require.NoError(t, err)
+
+	vm := tengo.NewVM(compiled.Bytecode(), compiled.Globals(), -1)
+
+	var calls, returns []int
+	vm.SetHook(func(_ *tengo.VM, info tengo.HookInfo) {
+		switch info.Event {
+		case tengo.HookCall:
+			calls = append(calls, info.Depth)
+		case tengo.HookReturn:
+			returns = append(returns, info.Depth)
+		}
+	}, tengo.HookMaskCall|tengo.HookMaskReturn)
+
+	require.NoError(t, vm.Run())
+
+	// add() and mul() each generate one call and one return.
+	require.Equal(t, 2, len(calls))
+	require.Equal(t, 2, len(returns))
+	// Both are called from depth 1 (main), so pushed frame is depth 2.
+	require.Equal(t, []int{2, 2}, calls)
+	require.Equal(t, []int{2, 2}, returns)
+}
+
+func TestVMHookLine(t *testing.T) {
+	src := `
+a := 1
+b := 2
+c := a + b
+`
+	s := tengo.NewScript([]byte(src))
+	compiled, err := s.Compile()
+	require.NoError(t, err)
+
+	vm := tengo.NewVM(compiled.Bytecode(), compiled.Globals(), -1)
+
+	var lines []int
+	vm.SetHook(func(_ *tengo.VM, info tengo.HookInfo) {
+		if info.Event == tengo.HookLine {
+			lines = append(lines, info.Pos.Line)
+		}
+	}, tengo.HookMaskLine)
+
+	require.NoError(t, vm.Run())
+
+	// Each source line should appear exactly once and in order.
+	require.Equal(t, 3, len(lines))
+	require.True(t, lines[0] < lines[1] && lines[1] < lines[2],
+		"lines should be in ascending order: %v", lines)
+}
+
+func TestVMHookPauseOnLine(t *testing.T) {
+	// Classic debugger pattern: pause execution when a specific line is reached.
+	src := `
+a := 1
+b := 2
+c := a + b
+d := c * 2
+`
+	s := tengo.NewScript([]byte(src))
+	compiled, err := s.Compile()
+	require.NoError(t, err)
+
+	vm := tengo.NewVM(compiled.Bytecode(), compiled.Globals(), -1)
+
+	var pausedAtLine int
+	vm.SetHook(func(v *tengo.VM, info tengo.HookInfo) {
+		if info.Event == tengo.HookLine && info.Pos.Line == 4 {
+			pausedAtLine = info.Pos.Line
+			v.Pause()
+		}
+	}, tengo.HookMaskLine)
+
+	require.NoError(t, vm.Run())
+	require.True(t, vm.IsPaused())
+	require.Equal(t, 4, pausedAtLine)
+
+	// c is not yet assigned (paused before executing line 4).
+	require.True(t, compiled.Get("c").IsUndefined())
+
+	// Resume and let the script finish.
+	require.NoError(t, vm.Resume())
+	require.False(t, vm.IsPaused())
+	require.Equal(t, int64(3), compiled.Get("c").Int64())
+	require.Equal(t, int64(6), compiled.Get("d").Int64())
+}

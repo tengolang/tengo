@@ -33,7 +33,10 @@ type VM struct {
 	maxAllocs    int64
 	allocs       int64
 	err          error
-	resumeDepth  int // non-zero: run() stops when framesIndex drops to this value
+	resumeDepth  int      // non-zero: run() stops when framesIndex drops to this value
+	hookFunc     HookFunc // nil when tracing is disabled
+	hookMask     HookMask // bitmask of enabled events
+	lastLine     int      // last seen source line, for HookLine dedup
 }
 
 // NewVM creates a VM.
@@ -64,6 +67,14 @@ func NewVM(
 // Abort aborts the execution. Safe to call from any goroutine.
 func (v *VM) Abort() {
 	atomic.StoreInt64(&v.aborting, 1)
+}
+
+// SetHook installs a hook function that the VM calls at the events selected
+// by mask. Pass fn=nil (or mask=0) to disable tracing.
+func (v *VM) SetHook(fn HookFunc, mask HookMask) {
+	v.hookFunc = fn
+	v.hookMask = mask
+	v.lastLine = 0
 }
 
 // Pause suspends execution after the current instruction completes.
@@ -135,6 +146,18 @@ func (v *VM) Run() (err error) {
 func (v *VM) run() {
 	for atomic.LoadInt64(&v.aborting) == 0 && atomic.LoadInt64(&v.pausing) == 0 {
 		v.ip++
+
+		if v.hookMask&HookMaskLine != 0 {
+			pos := v.fileSet.Position(v.curFrame.fn.SourcePos(v.ip))
+			if pos.Line != v.lastLine {
+				v.lastLine = pos.Line
+				v.hookFunc(v, HookInfo{
+					Event: HookLine,
+					Depth: v.framesIndex,
+					Pos:   pos,
+				})
+			}
+		}
 
 		switch v.curInsts[v.ip] {
 		case parser.OpConstant:
@@ -681,6 +704,13 @@ func (v *VM) run() {
 				v.ip = -1
 				v.framesIndex++
 				v.sp = v.sp - numArgs + callee.NumLocals
+				if v.hookMask&HookMaskCall != 0 {
+					v.hookFunc(v, HookInfo{
+						Event: HookCall,
+						Depth: v.framesIndex,
+						Pos:   v.fileSet.Position(callee.SourcePos(0)),
+					})
+				}
 			} else if callee, ok := value.(*InteropFunction); ok {
 				var args []Object
 				args = append(args, v.stack[v.sp-numArgs:v.sp]...)
@@ -765,6 +795,14 @@ func (v *VM) run() {
 					vals[i] = v.stack[v.sp-n+i]
 				}
 				retVal = &MultiValue{Values: vals}
+			}
+			if v.hookMask&HookMaskReturn != 0 {
+				v.hookFunc(v, HookInfo{
+					Event:  HookReturn,
+					Depth:  v.framesIndex,
+					Pos:    v.fileSet.Position(v.curFrame.fn.SourcePos(v.ip)),
+					RetVal: retVal,
+				})
 			}
 			v.framesIndex--
 			v.curFrame = &v.frames[v.framesIndex-1]

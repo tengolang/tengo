@@ -9,6 +9,7 @@
 - [Sandbox Environments](#sandbox-environments)
 - [Concurrency](#concurrency)
 - [Pausing and Resuming a VM](#pausing-and-resuming-a-vm)
+- [Tracing and Hooks](#tracing-and-hooks)
 - [Compiler and VM](#compiler-and-vm)
 
 ## Using Scripts
@@ -422,6 +423,90 @@ func main() {
   returns false and `Resume()` returns immediately.
 - `Abort()` permanently stops execution; `Pause()` + `Resume()` allows it
   to continue.
+
+## Tracing and Hooks
+
+The VM supports a hook mechanism similar to Python's `sys.settrace()` and
+Lua's `debug.sethook()`. A single Go callback can be registered to fire at
+any combination of three events: function calls, function returns, and
+source-line changes. This is the foundation for debuggers, code-coverage
+collectors, profilers, and execution inspectors.
+
+### VM.SetHook(fn HookFunc, mask HookMask)
+
+`SetHook` installs the hook function `fn` and enables the events selected by
+`mask`. Pass `fn=nil` (or `mask=0`) to remove the hook.
+
+```golang
+vm.SetHook(func(v *tengo.VM, info tengo.HookInfo) {
+    fmt.Printf("event=%v depth=%d pos=%s\n",
+        info.Event, info.Depth, info.Pos)
+}, tengo.HookMaskCall | tengo.HookMaskReturn | tengo.HookMaskLine)
+```
+
+The three mask constants:
+
+| Constant | Event fired |
+| :--- | :--- |
+| `HookMaskCall` | A compiled function is called. `info.Pos` is the function's definition site. |
+| `HookMaskReturn` | A function is about to return. `info.RetVal` carries the return value. |
+| `HookMaskLine` | Execution enters a new source line. `info.Pos.Line` is the new line number. |
+
+`HookInfo` fields:
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `Event` | `HookEvent` | `HookCall`, `HookReturn`, or `HookLine` |
+| `Depth` | `int` | Call-stack depth (1 = script body, +1 per nested call) |
+| `Pos` | `parser.SourceFilePos` | Source position (filename, line, column) |
+| `RetVal` | `Object` | Return value — set only for `HookReturn`, nil otherwise |
+
+### Performance
+
+Hooks are checked with a bitmask test on every instruction. When no hook is
+installed (`mask == 0`) the branch is never taken and there is no measurable
+overhead. `HookMaskLine` adds one source-map lookup per instruction when
+enabled; the other masks add checks only at the relevant opcodes.
+
+### Building a debugger
+
+The hook integrates cleanly with `Pause()` and `Resume()` (see
+[Pausing and Resuming a VM](#pausing-and-resuming-a-vm)): call `v.Pause()`
+inside the hook to stop the VM at any event.
+
+```golang
+vm := tengo.NewVM(compiled.Bytecode(), compiled.Globals(), -1)
+
+// Break on line 10.
+vm.SetHook(func(v *tengo.VM, info tengo.HookInfo) {
+    if info.Event == tengo.HookLine && info.Pos.Line == 10 {
+        v.Pause()
+    }
+}, tengo.HookMaskLine)
+
+if err := vm.Run(); err != nil {
+    panic(err)
+}
+
+if vm.IsPaused() {
+    fmt.Println("stopped at line 10")
+    // inspect globals, then continue:
+    vm.Resume()
+}
+```
+
+### Collecting code coverage
+
+```golang
+covered := make(map[int]bool)
+
+vm.SetHook(func(_ *tengo.VM, info tengo.HookInfo) {
+    covered[info.Pos.Line] = true
+}, tengo.HookMaskLine)
+
+vm.Run()
+fmt.Println("lines executed:", covered)
+```
 
 ## Compiler and VM
 
