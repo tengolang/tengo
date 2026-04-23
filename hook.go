@@ -5,20 +5,23 @@ import "github.com/ganehag/tengo/v3/parser"
 // HookEvent identifies which VM event triggered a hook.
 type HookEvent int
 
+// Hook event constants passed to HookFunc via HookInfo.Event.
 const (
-	HookCall   HookEvent = iota // a compiled function was called
-	HookReturn                  // a function is about to return
-	HookLine                    // execution reached a new source line
+	HookCall   HookEvent = iota // HookCall fires when a compiled function is called
+	HookReturn                  // HookReturn fires when a function is about to return
+	HookLine                    // HookLine fires when execution enters a new source line
 )
 
 // HookMask is a bitmask that selects which events fire the hook. Combine
 // values with bitwise OR: HookMaskCall | HookMaskReturn.
 type HookMask int
 
+// Hook mask constants for selecting which events trigger the hook.
+// Combine with bitwise OR: HookMaskCall | HookMaskLine.
 const (
-	HookMaskCall   HookMask = 1 << iota // enable HookCall events
-	HookMaskReturn                       // enable HookReturn events
-	HookMaskLine                         // enable HookLine events
+	HookMaskCall   HookMask = 1 << iota // HookMaskCall enables HookCall events
+	HookMaskReturn                       // HookMaskReturn enables HookReturn events
+	HookMaskLine                         // HookMaskLine enables HookLine events
 )
 
 // HookInfo carries the context for a single hook invocation.

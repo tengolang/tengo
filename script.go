@@ -253,8 +253,6 @@ func (c *Compiled) RunContext(ctx context.Context) (err error) {
 	return
 }
 
-// Size of compiled script in bytes
-// (as much as we can calculate it without reflection and black magic)
 // Bytecode returns the compiled bytecode. The returned value is shared with
 // the Compiled instance; do not mutate it after clones have been created.
 func (c *Compiled) Bytecode() *Bytecode {
@@ -272,6 +270,8 @@ func (c *Compiled) Globals() []Object {
 	return c.globals
 }
 
+// Size returns an approximate size of the compiled script in bytes, based on
+// the bytecode and the global variable index and value slices.
 func (c *Compiled) Size() int64 {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
