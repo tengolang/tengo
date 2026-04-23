@@ -125,6 +125,22 @@ var builtinFuncs = []*BuiltinFunction{
 		Name:  "range",
 		Value: builtinRange,
 	},
+	{
+		Name:  "assoc",
+		Value: builtinAssoc,
+	},
+	{
+		Name:  "dissoc",
+		Value: builtinDissoc,
+	},
+	{
+		Name:  "insert",
+		Value: builtinInsert,
+	},
+	{
+		Name:  "remove",
+		Value: builtinRemove,
+	},
 }
 
 // GetAllBuiltinFunctions returns all builtin function objects.
@@ -571,7 +587,10 @@ func builtinAppend(args ...Object) (Object, error) {
 	case *Array:
 		return &Array{Value: append(arg.Value, args[1:]...)}, nil
 	case *ImmutableArray:
-		return &Array{Value: append(arg.Value, args[1:]...)}, nil
+		c := make([]Object, len(arg.Value)+len(args)-1)
+		copy(c, arg.Value)
+		copy(c[len(arg.Value):], args[1:])
+		return &ImmutableArray{Value: c}, nil
 	default:
 		return nil, ErrInvalidArgumentType{
 			Name:     "first",
@@ -605,6 +624,217 @@ func builtinDelete(args ...Object) (Object, error) {
 			Name:     "first",
 			Expected: "map",
 			Found:    arg.TypeName(),
+		}
+	}
+}
+
+// assoc(coll, key, val) returns a new collection with the key or index set to
+// val without modifying the original. Works on both mutable and immutable
+// arrays (key must be an int) and maps (key must be a string). The return type
+// mirrors the input type.
+func builtinAssoc(args ...Object) (Object, error) {
+	if len(args) != 3 {
+		return nil, ErrWrongNumArguments
+	}
+	switch coll := args[0].(type) {
+	case *Array:
+		idx, ok := args[1].(Int)
+		if !ok {
+			return nil, ErrInvalidArgumentType{
+				Name:     "second",
+				Expected: "int",
+				Found:    args[1].TypeName(),
+			}
+		}
+		i := int(idx.Value)
+		if i < 0 || i >= len(coll.Value) {
+			return nil, ErrIndexOutOfBounds
+		}
+		c := make([]Object, len(coll.Value))
+		copy(c, coll.Value)
+		c[i] = args[2]
+		return &Array{Value: c}, nil
+	case *ImmutableArray:
+		idx, ok := args[1].(Int)
+		if !ok {
+			return nil, ErrInvalidArgumentType{
+				Name:     "second",
+				Expected: "int",
+				Found:    args[1].TypeName(),
+			}
+		}
+		i := int(idx.Value)
+		if i < 0 || i >= len(coll.Value) {
+			return nil, ErrIndexOutOfBounds
+		}
+		c := make([]Object, len(coll.Value))
+		copy(c, coll.Value)
+		c[i] = args[2]
+		return &ImmutableArray{Value: c}, nil
+	case *Map:
+		key, ok := ToString(args[1])
+		if !ok {
+			return nil, ErrInvalidArgumentType{
+				Name:     "second",
+				Expected: "string",
+				Found:    args[1].TypeName(),
+			}
+		}
+		c := make(map[string]Object, len(coll.Value)+1)
+		for k, v := range coll.Value {
+			c[k] = v
+		}
+		c[key] = args[2]
+		return &Map{Value: c}, nil
+	case *ImmutableMap:
+		key, ok := ToString(args[1])
+		if !ok {
+			return nil, ErrInvalidArgumentType{
+				Name:     "second",
+				Expected: "string",
+				Found:    args[1].TypeName(),
+			}
+		}
+		c := make(map[string]Object, len(coll.Value)+1)
+		for k, v := range coll.Value {
+			c[k] = v
+		}
+		c[key] = args[2]
+		return &ImmutableMap{Value: c}, nil
+	default:
+		return nil, ErrInvalidArgumentType{
+			Name:     "first",
+			Expected: "array/map",
+			Found:    args[0].TypeName(),
+		}
+	}
+}
+
+// dissoc(map, key) returns a new map without the given key, without modifying
+// the original. Works on both mutable and immutable maps. The return type
+// mirrors the input type.
+func builtinDissoc(args ...Object) (Object, error) {
+	if len(args) != 2 {
+		return nil, ErrWrongNumArguments
+	}
+	key, ok := ToString(args[1])
+	if !ok {
+		return nil, ErrInvalidArgumentType{
+			Name:     "second",
+			Expected: "string",
+			Found:    args[1].TypeName(),
+		}
+	}
+	switch m := args[0].(type) {
+	case *Map:
+		c := make(map[string]Object, len(m.Value))
+		for k, v := range m.Value {
+			if k != key {
+				c[k] = v
+			}
+		}
+		return &Map{Value: c}, nil
+	case *ImmutableMap:
+		c := make(map[string]Object, len(m.Value))
+		for k, v := range m.Value {
+			if k != key {
+				c[k] = v
+			}
+		}
+		return &ImmutableMap{Value: c}, nil
+	default:
+		return nil, ErrInvalidArgumentType{
+			Name:     "first",
+			Expected: "map",
+			Found:    args[0].TypeName(),
+		}
+	}
+}
+
+// insert(arr, idx, val) returns a new array with val inserted before idx,
+// without modifying the original. Works on both mutable and immutable arrays.
+// The return type mirrors the input type. idx must be in [0, len(arr)].
+func builtinInsert(args ...Object) (Object, error) {
+	if len(args) != 3 {
+		return nil, ErrWrongNumArguments
+	}
+	idx, ok := args[1].(Int)
+	if !ok {
+		return nil, ErrInvalidArgumentType{
+			Name:     "second",
+			Expected: "int",
+			Found:    args[1].TypeName(),
+		}
+	}
+	switch arr := args[0].(type) {
+	case *Array:
+		i := int(idx.Value)
+		if i < 0 || i > len(arr.Value) {
+			return nil, ErrIndexOutOfBounds
+		}
+		c := make([]Object, len(arr.Value)+1)
+		copy(c, arr.Value[:i])
+		c[i] = args[2]
+		copy(c[i+1:], arr.Value[i:])
+		return &Array{Value: c}, nil
+	case *ImmutableArray:
+		i := int(idx.Value)
+		if i < 0 || i > len(arr.Value) {
+			return nil, ErrIndexOutOfBounds
+		}
+		c := make([]Object, len(arr.Value)+1)
+		copy(c, arr.Value[:i])
+		c[i] = args[2]
+		copy(c[i+1:], arr.Value[i:])
+		return &ImmutableArray{Value: c}, nil
+	default:
+		return nil, ErrInvalidArgumentType{
+			Name:     "first",
+			Expected: "array",
+			Found:    args[0].TypeName(),
+		}
+	}
+}
+
+// remove(arr, idx) returns a new array with the element at idx removed,
+// without modifying the original. Works on both mutable and immutable arrays.
+// The return type mirrors the input type.
+func builtinRemove(args ...Object) (Object, error) {
+	if len(args) != 2 {
+		return nil, ErrWrongNumArguments
+	}
+	idx, ok := args[1].(Int)
+	if !ok {
+		return nil, ErrInvalidArgumentType{
+			Name:     "second",
+			Expected: "int",
+			Found:    args[1].TypeName(),
+		}
+	}
+	switch arr := args[0].(type) {
+	case *Array:
+		i := int(idx.Value)
+		if i < 0 || i >= len(arr.Value) {
+			return nil, ErrIndexOutOfBounds
+		}
+		c := make([]Object, len(arr.Value)-1)
+		copy(c, arr.Value[:i])
+		copy(c[i:], arr.Value[i+1:])
+		return &Array{Value: c}, nil
+	case *ImmutableArray:
+		i := int(idx.Value)
+		if i < 0 || i >= len(arr.Value) {
+			return nil, ErrIndexOutOfBounds
+		}
+		c := make([]Object, len(arr.Value)-1)
+		copy(c, arr.Value[:i])
+		copy(c[i:], arr.Value[i+1:])
+		return &ImmutableArray{Value: c}, nil
+	default:
+		return nil, ErrInvalidArgumentType{
+			Name:     "first",
+			Expected: "array",
+			Found:    args[0].TypeName(),
 		}
 	}
 }

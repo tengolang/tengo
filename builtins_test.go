@@ -8,6 +8,15 @@ import (
 	"github.com/ganehag/tengo/v3"
 )
 
+func lookupBuiltin(name string) func(...tengo.Object) (tengo.Object, error) {
+	for _, f := range tengo.GetAllBuiltinFunctions() {
+		if f.Name == name {
+			return f.Value
+		}
+	}
+	return nil
+}
+
 func Test_builtinDelete(t *testing.T) {
 	var builtinDelete func(args ...tengo.Object) (tengo.Object, error)
 	for _, f := range tengo.GetAllBuiltinFunctions() {
@@ -503,4 +512,242 @@ func Test_builtinRange(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuiltinAppendImmutable(t *testing.T) {
+	fn := lookupBuiltin("append")
+	src := &tengo.ImmutableArray{Value: []tengo.Object{tengo.Int{Value: 1}, tengo.Int{Value: 2}}}
+	got, err := fn(src, tengo.Int{Value: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, ok := got.(*tengo.ImmutableArray)
+	if !ok {
+		t.Fatalf("expected ImmutableArray, got %T", got)
+	}
+	if len(result.Value) != 3 || result.Value[2] != (tengo.Int{Value: 3}) {
+		t.Fatalf("unexpected result: %v", result)
+	}
+	// original must be unchanged
+	if len(src.Value) != 2 {
+		t.Fatal("original was modified")
+	}
+}
+
+func TestBuiltinAssoc(t *testing.T) {
+	assoc := lookupBuiltin("assoc")
+
+	t.Run("mutable array", func(t *testing.T) {
+		arr := &tengo.Array{Value: []tengo.Object{tengo.Int{Value: 1}, tengo.Int{Value: 2}}}
+		got, err := assoc(arr, tengo.Int{Value: 0}, tengo.Int{Value: 9})
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := got.(*tengo.Array)
+		if result.Value[0] != (tengo.Int{Value: 9}) {
+			t.Fatalf("unexpected: %v", result)
+		}
+		if arr.Value[0] != (tengo.Int{Value: 1}) {
+			t.Fatal("original was modified")
+		}
+	})
+
+	t.Run("immutable array", func(t *testing.T) {
+		arr := &tengo.ImmutableArray{Value: []tengo.Object{tengo.Int{Value: 1}, tengo.Int{Value: 2}}}
+		got, err := assoc(arr, tengo.Int{Value: 1}, tengo.Int{Value: 9})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := got.(*tengo.ImmutableArray); !ok {
+			t.Fatalf("expected ImmutableArray, got %T", got)
+		}
+		if got.(*tengo.ImmutableArray).Value[1] != (tengo.Int{Value: 9}) {
+			t.Fatalf("unexpected: %v", got)
+		}
+		if arr.Value[1] != (tengo.Int{Value: 2}) {
+			t.Fatal("original was modified")
+		}
+	})
+
+	t.Run("mutable map", func(t *testing.T) {
+		m := &tengo.Map{Value: map[string]tengo.Object{"a": tengo.Int{Value: 1}}}
+		got, err := assoc(m, &tengo.String{Value: "b"}, tengo.Int{Value: 2})
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := got.(*tengo.Map)
+		if result.Value["b"] != (tengo.Int{Value: 2}) {
+			t.Fatalf("unexpected: %v", result)
+		}
+		if _, hasB := m.Value["b"]; hasB {
+			t.Fatal("original was modified")
+		}
+	})
+
+	t.Run("immutable map", func(t *testing.T) {
+		m := &tengo.ImmutableMap{Value: map[string]tengo.Object{"a": tengo.Int{Value: 1}}}
+		got, err := assoc(m, &tengo.String{Value: "a"}, tengo.Int{Value: 99})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := got.(*tengo.ImmutableMap); !ok {
+			t.Fatalf("expected ImmutableMap, got %T", got)
+		}
+		if got.(*tengo.ImmutableMap).Value["a"] != (tengo.Int{Value: 99}) {
+			t.Fatalf("unexpected: %v", got)
+		}
+		if m.Value["a"] != (tengo.Int{Value: 1}) {
+			t.Fatal("original was modified")
+		}
+	})
+
+	t.Run("out of bounds", func(t *testing.T) {
+		arr := &tengo.Array{Value: []tengo.Object{tengo.Int{Value: 1}}}
+		_, err := assoc(arr, tengo.Int{Value: 5}, tengo.Int{Value: 9})
+		if !errors.Is(err, tengo.ErrIndexOutOfBounds) {
+			t.Fatalf("expected ErrIndexOutOfBounds, got %v", err)
+		}
+	})
+}
+
+func TestBuiltinDissoc(t *testing.T) {
+	dissoc := lookupBuiltin("dissoc")
+
+	t.Run("mutable map", func(t *testing.T) {
+		m := &tengo.Map{Value: map[string]tengo.Object{
+			"a": tengo.Int{Value: 1}, "b": tengo.Int{Value: 2},
+		}}
+		got, err := dissoc(m, &tengo.String{Value: "a"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := got.(*tengo.Map)
+		if _, has := result.Value["a"]; has {
+			t.Fatal("key still present")
+		}
+		if _, has := m.Value["a"]; !has {
+			t.Fatal("original was modified")
+		}
+	})
+
+	t.Run("immutable map", func(t *testing.T) {
+		m := &tengo.ImmutableMap{Value: map[string]tengo.Object{
+			"a": tengo.Int{Value: 1}, "b": tengo.Int{Value: 2},
+		}}
+		got, err := dissoc(m, &tengo.String{Value: "b"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := got.(*tengo.ImmutableMap); !ok {
+			t.Fatalf("expected ImmutableMap, got %T", got)
+		}
+		if _, has := got.(*tengo.ImmutableMap).Value["b"]; has {
+			t.Fatal("key still present")
+		}
+		if _, has := m.Value["b"]; !has {
+			t.Fatal("original was modified")
+		}
+	})
+
+	t.Run("missing key is no-op", func(t *testing.T) {
+		m := &tengo.ImmutableMap{Value: map[string]tengo.Object{"a": tengo.Int{Value: 1}}}
+		got, err := dissoc(m, &tengo.String{Value: "z"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got.(*tengo.ImmutableMap).Value) != 1 {
+			t.Fatal("unexpected size")
+		}
+	})
+}
+
+func TestBuiltinInsert(t *testing.T) {
+	insert := lookupBuiltin("insert")
+
+	t.Run("mutable array", func(t *testing.T) {
+		arr := &tengo.Array{Value: []tengo.Object{tengo.Int{Value: 1}, tengo.Int{Value: 3}}}
+		got, err := insert(arr, tengo.Int{Value: 1}, tengo.Int{Value: 2})
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := got.(*tengo.Array)
+		if len(result.Value) != 3 || result.Value[1] != (tengo.Int{Value: 2}) {
+			t.Fatalf("unexpected: %v", result)
+		}
+		if len(arr.Value) != 2 {
+			t.Fatal("original was modified")
+		}
+	})
+
+	t.Run("immutable array", func(t *testing.T) {
+		arr := &tengo.ImmutableArray{Value: []tengo.Object{tengo.Int{Value: 1}, tengo.Int{Value: 3}}}
+		got, err := insert(arr, tengo.Int{Value: 0}, tengo.Int{Value: 0})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := got.(*tengo.ImmutableArray); !ok {
+			t.Fatalf("expected ImmutableArray, got %T", got)
+		}
+		result := got.(*tengo.ImmutableArray)
+		if len(result.Value) != 3 || result.Value[0] != (tengo.Int{Value: 0}) {
+			t.Fatalf("unexpected: %v", result)
+		}
+	})
+
+	t.Run("append via insert at len", func(t *testing.T) {
+		arr := &tengo.ImmutableArray{Value: []tengo.Object{tengo.Int{Value: 1}}}
+		got, err := insert(arr, tengo.Int{Value: 1}, tengo.Int{Value: 2})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got.(*tengo.ImmutableArray).Value) != 2 {
+			t.Fatal("expected length 2")
+		}
+	})
+}
+
+func TestBuiltinRemove(t *testing.T) {
+	remove := lookupBuiltin("remove")
+
+	t.Run("mutable array", func(t *testing.T) {
+		arr := &tengo.Array{Value: []tengo.Object{
+			tengo.Int{Value: 1}, tengo.Int{Value: 2}, tengo.Int{Value: 3},
+		}}
+		got, err := remove(arr, tengo.Int{Value: 1})
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := got.(*tengo.Array)
+		if len(result.Value) != 2 || result.Value[1] != (tengo.Int{Value: 3}) {
+			t.Fatalf("unexpected: %v", result)
+		}
+		if len(arr.Value) != 3 {
+			t.Fatal("original was modified")
+		}
+	})
+
+	t.Run("immutable array", func(t *testing.T) {
+		arr := &tengo.ImmutableArray{Value: []tengo.Object{
+			tengo.Int{Value: 1}, tengo.Int{Value: 2}, tengo.Int{Value: 3},
+		}}
+		got, err := remove(arr, tengo.Int{Value: 0})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := got.(*tengo.ImmutableArray); !ok {
+			t.Fatalf("expected ImmutableArray, got %T", got)
+		}
+		result := got.(*tengo.ImmutableArray)
+		if len(result.Value) != 2 || result.Value[0] != (tengo.Int{Value: 2}) {
+			t.Fatalf("unexpected: %v", result)
+		}
+	})
+
+	t.Run("out of bounds", func(t *testing.T) {
+		arr := &tengo.ImmutableArray{Value: []tengo.Object{tengo.Int{Value: 1}}}
+		_, err := remove(arr, tengo.Int{Value: 5})
+		if !errors.Is(err, tengo.ErrIndexOutOfBounds) {
+			t.Fatalf("expected ErrIndexOutOfBounds, got %v", err)
+		}
+	})
 }

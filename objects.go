@@ -891,7 +891,10 @@ func (o *ImmutableArray) BinaryOp(op token.Token, rhs Object) (Object, error) {
 	if rhs, ok := rhs.(*ImmutableArray); ok {
 		switch op {
 		case token.Add:
-			return &Array{Value: append(o.Value, rhs.Value...)}, nil
+			c := make([]Object, len(o.Value)+len(rhs.Value))
+			copy(c, o.Value)
+			copy(c[len(o.Value):], rhs.Value)
+			return &ImmutableArray{Value: c}, nil
 		}
 	}
 	return nil, ErrInvalidOperator
