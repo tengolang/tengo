@@ -8,6 +8,7 @@
   - [User Types](#user-types)
 - [Sandbox Environments](#sandbox-environments)
 - [Concurrency](#concurrency)
+- [Pausing and Resuming a VM](#pausing-and-resuming-a-vm)
 - [Compiler and VM](#compiler-and-vm)
 
 ## Using Scripts
@@ -309,6 +310,118 @@ for i := 0; i < concurrency; i++ {
     }(compiled.Clone()) // Pass the cloned copy of Compiled
 }
 ```
+
+## Pausing and Resuming a VM
+
+A running VM can be suspended at any instruction boundary and resumed later
+from the exact same point. This is useful for implementing cooperative
+scheduling, debuggers, step-through execution, or any scenario where an
+external controller needs to stop and restart a script.
+
+Because the `Script`/`Compiled` API creates a new `VM` internally on each
+`Run()` call, pause/resume requires working with `VM` directly. Use
+`Compiled.Bytecode()` and `Compiled.Globals()` to obtain the pieces needed
+to construct one:
+
+```golang
+compiled, err := script.Compile()
+// ...
+
+vm := tengo.NewVM(compiled.Bytecode(), compiled.Globals(), -1)
+```
+
+### VM.Pause()
+
+`Pause` signals the VM to stop after the current instruction completes.
+It is safe to call from any goroutine. The VM state is fully preserved —
+the instruction pointer, call stack, and all globals remain intact.
+
+```golang
+done := make(chan error, 1)
+go func() { done <- vm.Run() }()
+
+// ... some time later, from any goroutine:
+vm.Pause()
+err := <-done   // Run() returns nil (not an error)
+```
+
+### VM.IsPaused()
+
+`IsPaused` reports whether the VM is currently in a paused state.
+Use it after `Run()` or `Resume()` returns to distinguish a clean pause
+from normal completion.
+
+```golang
+if vm.IsPaused() {
+    // script is mid-execution; can be resumed
+} else {
+    // script ran to completion (or was aborted)
+}
+```
+
+### VM.Resume()
+
+`Resume` clears the pause flag and continues execution from where it
+stopped. It must be called from the goroutine that owns the VM — i.e.
+after `Run()` or a previous `Resume()` has returned. It returns the same
+kind of error as `Run()`.
+
+```golang
+if err := vm.Resume(); err != nil {
+    // runtime error inside the script
+}
+```
+
+### Full example
+
+```golang
+import (
+    "fmt"
+
+    "github.com/ganehag/tengo/v3"
+)
+
+func main() {
+    s := tengo.NewScript([]byte(`
+        count := 0
+        for i := 0; i < 1000000; i++ {
+            count = count + 1
+        }
+    `))
+
+    compiled, err := s.Compile()
+    if err != nil {
+        panic(err)
+    }
+
+    vm := tengo.NewVM(compiled.Bytecode(), compiled.Globals(), -1)
+
+    done := make(chan error, 1)
+    go func() { done <- vm.Run() }()
+
+    // Pause mid-execution.
+    vm.Pause()
+    <-done
+
+    if vm.IsPaused() {
+        fmt.Println("paused at count =", compiled.Get("count").Int())
+    }
+
+    // Resume to completion.
+    if err := vm.Resume(); err != nil {
+        panic(err)
+    }
+    fmt.Println("final count =", compiled.Get("count").Int()) // 1000000
+}
+```
+
+**Notes:**
+- `Pause()` is safe from any goroutine; `Resume()` must be called from
+  the goroutine that owns the VM.
+- If `Pause()` is called after the script has already finished, `IsPaused()`
+  returns false and `Resume()` returns immediately.
+- `Abort()` permanently stops execution; `Pause()` + `Resume()` allows it
+  to continue.
 
 ## Compiler and VM
 

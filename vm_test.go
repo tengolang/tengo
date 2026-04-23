@@ -4362,3 +4362,62 @@ out = 0
 `, Opts().Module("m", modErr).Skip2ndPass(), 0)
 	require.Equal(t, tengo.Int{Value: 99}, gotErr)
 }
+
+func TestVMPauseResume(t *testing.T) {
+	// The InteropFunction acts as a synchronisation barrier: it signals that
+	// the VM is live, then blocks until Pause() has been called. This ensures
+	// the pausing flag is set before run() returns to its loop-condition check,
+	// with no timing assumptions.
+	running := make(chan struct{})
+	pauseSet := make(chan struct{})
+
+	pingMod := &tengo.BuiltinModule{
+		Attrs: map[string]tengo.Object{
+			"ping": &tengo.InteropFunction{
+				Name: "ping",
+				Value: func(_ *tengo.VM, _ ...tengo.Object) (tengo.Object, error) {
+					close(running) // "I'm alive"
+					<-pauseSet     // wait until Pause() has been called
+					return tengo.UndefinedValue, nil
+				},
+			},
+		},
+	}
+
+	src := `
+m := import("m")
+m.ping()
+count := 0
+for i := 0; i < 1000000; i++ {
+	count = count + 1
+}
+`
+	s := tengo.NewScript([]byte(src))
+	mods := tengo.NewModuleMap()
+	mods.Add("m", pingMod)
+	s.SetImports(mods)
+	compiled, err := s.Compile()
+	require.NoError(t, err)
+
+	vm := tengo.NewVM(compiled.Bytecode(), compiled.Globals(), -1)
+
+	done := make(chan error, 1)
+	go func() { done <- vm.Run() }()
+
+	<-running    // VM is inside ping(), blocked on pauseSet
+	vm.Pause()   // set flag while VM is still inside the InteropFunction
+	close(pauseSet) // release ping(); run() loop will see pausing=1 immediately
+
+	err = <-done
+	require.NoError(t, err)
+	require.True(t, vm.IsPaused())
+
+	// Paused before the loop: count is not yet assigned.
+	require.True(t, compiled.Get("count").IsUndefined())
+
+	// Resume and let the loop finish.
+	err = vm.Resume()
+	require.NoError(t, err)
+	require.False(t, vm.IsPaused())
+	require.Equal(t, int64(1000000), compiled.Get("count").Int64())
+}

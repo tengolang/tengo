@@ -29,6 +29,7 @@ type VM struct {
 	curInsts    []byte
 	ip          int
 	aborting     int64
+	pausing      int64 // atomic: set by Pause(), cleared by Resume() and Run()
 	maxAllocs    int64
 	allocs       int64
 	err          error
@@ -60,9 +61,44 @@ func NewVM(
 	return v
 }
 
-// Abort aborts the execution.
+// Abort aborts the execution. Safe to call from any goroutine.
 func (v *VM) Abort() {
 	atomic.StoreInt64(&v.aborting, 1)
+}
+
+// Pause suspends execution after the current instruction completes.
+// Safe to call from any goroutine. Call Resume to continue from the same point.
+func (v *VM) Pause() {
+	atomic.StoreInt64(&v.pausing, 1)
+}
+
+// IsPaused reports whether the VM is currently paused.
+func (v *VM) IsPaused() bool {
+	return atomic.LoadInt64(&v.pausing) == 1
+}
+
+// Resume continues execution after a Pause. Must be called from the goroutine
+// that owns the VM — i.e. after Run() or a previous Resume() has returned.
+// Returns nil when the script finishes normally; check IsPaused() to
+// distinguish a normal finish from another Pause.
+func (v *VM) Resume() error {
+	atomic.StoreInt64(&v.pausing, 0)
+	v.run()
+	err := v.err
+	if err != nil {
+		filePos := v.fileSet.Position(
+			v.curFrame.fn.SourcePos(v.ip - 1))
+		err = fmt.Errorf("Runtime Error: %w\n\tat %s", err, filePos)
+		for v.framesIndex > 1 {
+			v.framesIndex--
+			v.curFrame = &v.frames[v.framesIndex-1]
+			filePos = v.fileSet.Position(
+				v.curFrame.fn.SourcePos(v.curFrame.ip - 1))
+			err = fmt.Errorf("%w\n\tat %s", err, filePos)
+		}
+		return err
+	}
+	return nil
 }
 
 // Run starts the execution.
@@ -74,6 +110,7 @@ func (v *VM) Run() (err error) {
 	v.framesIndex = 1
 	v.ip = -1
 	v.allocs = v.maxAllocs + 1
+	atomic.StoreInt64(&v.pausing, 0)
 
 	v.run()
 	atomic.StoreInt64(&v.aborting, 0)
@@ -96,7 +133,7 @@ func (v *VM) Run() (err error) {
 }
 
 func (v *VM) run() {
-	for atomic.LoadInt64(&v.aborting) == 0 {
+	for atomic.LoadInt64(&v.aborting) == 0 && atomic.LoadInt64(&v.pausing) == 0 {
 		v.ip++
 
 		switch v.curInsts[v.ip] {
