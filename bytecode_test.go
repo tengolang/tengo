@@ -230,6 +230,83 @@ func TestBytecode_RemoveDuplicates(t *testing.T) {
 				tengo.Int{Value: 1},
 				tengo.Int{Value: 2},
 				tengo.Int{Value: 3})))
+
+	// Same *CompiledFunction pointer at two different constant indexes (the
+	// scenario produced by importing the same source module from two places).
+	// Deduplication must collapse the two entries and patch all OpConstant
+	// references that pointed to the duplicate.
+	sharedFn := compiledFunction(0, 0,
+		tengo.MakeInstruction(parser.OpReturn, 0))
+	testBytecodeRemoveDuplicates(t,
+		bytecode(
+			concatInsts(
+				tengo.MakeInstruction(parser.OpConstant, 0), // first import
+				tengo.MakeInstruction(parser.OpCall, 0, 0),
+				tengo.MakeInstruction(parser.OpPop),
+				tengo.MakeInstruction(parser.OpConstant, 1), // second import — duplicate
+				tengo.MakeInstruction(parser.OpCall, 0, 0),
+				tengo.MakeInstruction(parser.OpPop)),
+			[]tengo.Object{sharedFn, sharedFn}), // same pointer twice
+		bytecode(
+			concatInsts(
+				tengo.MakeInstruction(parser.OpConstant, 0),
+				tengo.MakeInstruction(parser.OpCall, 0, 0),
+				tengo.MakeInstruction(parser.OpPop),
+				tengo.MakeInstruction(parser.OpConstant, 0), // patched to 0
+				tengo.MakeInstruction(parser.OpCall, 0, 0),
+				tengo.MakeInstruction(parser.OpPop)),
+			[]tengo.Object{sharedFn})) // one entry
+}
+
+// TestRemoveDuplicatesSourceModule verifies end-to-end that a source module
+// imported from multiple places in the same script produces only a single
+// CompiledFunction in the constants after compilation (via Script.Compile,
+// which calls RemoveDuplicates internally).
+func TestRemoveDuplicatesSourceModule(t *testing.T) {
+	modSrc := []byte(`export func(x) { return x * 2 }`)
+
+	// Import the same module from two different variables.
+	scriptSrc := []byte(`
+double1 := import("double")
+double2 := import("double")
+a := double1(3)
+b := double2(5)
+`)
+	mods := tengo.NewModuleMap()
+	mods.AddSourceModule("double", modSrc)
+
+	s := tengo.NewScript(scriptSrc)
+	s.SetImports(mods)
+
+	compiled, err := s.Compile()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Count how many CompiledFunction objects are in the constants. There
+	// should be exactly two: the module's outer wrapper function and the
+	// inner exported func. Before the fix this would be three (the wrapper
+	// was duplicated).
+	var fnCount int
+	for _, c := range compiled.Bytecode().Constants {
+		if _, ok := c.(*tengo.CompiledFunction); ok {
+			fnCount++
+		}
+	}
+	if fnCount != 2 {
+		t.Errorf("expected 2 CompiledFunction constants after dedup, got %d", fnCount)
+	}
+
+	// Correctness: the script must still produce the right results.
+	if err := compiled.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if got := compiled.Get("a").Int(); got != 6 {
+		t.Errorf("a: want 6, got %d", got)
+	}
+	if got := compiled.Get("b").Int(); got != 10 {
+		t.Errorf("b: want 10, got %d", got)
+	}
 }
 
 func TestBytecode_CountObjects(t *testing.T) {
