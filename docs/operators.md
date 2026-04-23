@@ -175,7 +175,8 @@ Tests whether two _(immutable)_ arrays contain the same objects.
 
 ### Concatenation
 
-- `(array) + (array)`: return a concatenated array  
+- `(array) + (array)`: return a concatenated array
+- `(immutable-array) + (immutable-array)`: return a concatenated immutable array
 
 ## Map and ImmutableMap
 

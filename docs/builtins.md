@@ -39,10 +39,18 @@ print(v3[1]) // "2"; 'v3' not affected by 'v1'
 
 Appends object(s) to an array (first argument) and returns a new array object.
 (Like Go's `append` builtin.) Currently, this function takes array type only.
+When the first argument is an immutable array, the returned array is also
+immutable.
 
 ```golang
 v := [1]
 v = append(v, 2, 3) // v == [1, 2, 3]
+```
+
+```golang
+v := immutable([1, 2])
+v = append(v, 3)    // v == immutable([1, 2, 3])
+is_immutable_array(v) // true
 ```
 
 ## delete
@@ -323,3 +331,86 @@ immutable map, string, and bytes are iterable types in Tengo.
 ## is_time
 
 Returns `true` if the object's type is time. Or it returns `false`.
+
+## assoc
+
+Returns a new collection with the given key or index set to a value, without
+modifying the original. Works on both arrays (index must be int) and maps (key
+must be a string). The return type mirrors the input: a mutable input produces a
+mutable result; an immutable input produces an immutable result.
+
+```golang
+a := [1, 2, 3]
+b := assoc(a, 1, 99) // b == [1, 99, 3], a unchanged
+```
+
+```golang
+a := immutable([1, 2, 3])
+b := assoc(a, 0, 10)      // b == immutable([10, 2, 3])
+is_immutable_array(b)      // true
+```
+
+```golang
+m := {x: 1, y: 2}
+m2 := assoc(m, "z", 3)    // m2 == {x: 1, y: 2, z: 3}, m unchanged
+```
+
+```golang
+m := immutable({x: 1})
+m2 := assoc(m, "x", 99)   // m2 == immutable({x: 99})
+is_immutable_map(m2)        // true
+```
+
+## dissoc
+
+Returns a new map without the given key, without modifying the original.
+Works on both mutable and immutable maps. The return type mirrors the input.
+
+```golang
+m := {a: 1, b: 2}
+m2 := dissoc(m, "a")       // m2 == {b: 2}, m unchanged
+```
+
+```golang
+m := immutable({a: 1, b: 2})
+m2 := dissoc(m, "b")        // m2 == immutable({a: 1})
+is_immutable_map(m2)         // true
+```
+
+If the key is not present, `dissoc` returns a copy of the original map with no
+error.
+
+## insert
+
+Returns a new array with the given value inserted before the element at the
+given index, without modifying the original. An index equal to the array length
+is equivalent to appending. Works on both mutable and immutable arrays. The
+return type mirrors the input.
+
+```golang
+a := [1, 3, 4]
+b := insert(a, 1, 2)   // b == [1, 2, 3, 4], a unchanged
+```
+
+```golang
+a := immutable([1, 2])
+b := insert(a, 0, 0)   // prepend: b == immutable([0, 1, 2])
+c := insert(a, 2, 3)   // append:  c == immutable([1, 2, 3])
+```
+
+## remove
+
+Returns a new array with the element at the given index removed, without
+modifying the original. Works on both mutable and immutable arrays. The return
+type mirrors the input.
+
+```golang
+a := [1, 2, 3]
+b := remove(a, 1)          // b == [1, 3], a unchanged
+```
+
+```golang
+a := immutable([10, 20, 30])
+b := remove(a, 0)            // b == immutable([20, 30])
+is_immutable_array(b)         // true
+```
