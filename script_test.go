@@ -111,15 +111,15 @@ func TestScript_SetMaxConstObjects(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, "exceeding constant objects limit: 1", err.Error())
 
-	// two constants '5' and '1'
+	// one constant '6' (5 + 1 folded at compile time)
 	s = tengo.NewScript([]byte(`a := 5 + 1`))
-	s.SetMaxConstObjects(2) // limit = 2
-	_, err = s.Compile()
-	require.NoError(t, err)
 	s.SetMaxConstObjects(1) // limit = 1
 	_, err = s.Compile()
+	require.NoError(t, err)
+	s.SetMaxConstObjects(0) // limit = 0
+	_, err = s.Compile()
 	require.Error(t, err)
-	require.Equal(t, "exceeding constant objects limit: 2", err.Error())
+	require.Equal(t, "exceeding constant objects limit: 1", err.Error())
 
 	// duplicates will be removed
 	s = tengo.NewScript([]byte(`a := 5 + 5`))

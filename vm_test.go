@@ -2946,7 +2946,7 @@ func TestBangOperator(t *testing.T) {
 
 func TestObjectsLimit(t *testing.T) {
 	testAllocsLimit(t, `5`, 0)
-	testAllocsLimit(t, `5 + 5`, 1)
+	testAllocsLimit(t, `5 + 5`, 0)
 	testAllocsLimit(t, `a := [1, 2, 3]`, 1)
 	testAllocsLimit(t, `a := 1; b := 2; c := 3; d := [a, b, c]`, 1)
 	testAllocsLimit(t, `a := {foo: 1, bar: 2}`, 1)
@@ -2956,13 +2956,13 @@ f := func() {
 	return 5 + 5
 }
 a := f() + 5
-`, 2)
+`, 1)
 	testAllocsLimit(t, `
 f := func() {
 	return 5 + 5
 }
 a := f()
-`, 1)
+`, 0)
 	testAllocsLimit(t, `
 a := []
 f := func() {

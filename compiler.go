@@ -140,6 +140,9 @@ func (c *Compiler) Compile(node parser.Node) error {
 			return err
 		}
 	case *parser.BinaryExpr:
+		if val, ok := evalConstExpr(node); ok {
+			return c.emitFoldedConst(node, val)
+		}
 		if node.Token == token.LAnd || node.Token == token.LOr {
 			return c.compileLogical(node)
 		}
@@ -214,6 +217,9 @@ func (c *Compiler) Compile(node parser.Node) error {
 	case *parser.UndefinedLit:
 		c.emit(node, parser.OpNull)
 	case *parser.UnaryExpr:
+		if val, ok := evalConstExpr(node); ok {
+			return c.emitFoldedConst(node, val)
+		}
 		if err := c.Compile(node.Expr); err != nil {
 			return err
 		}
@@ -243,6 +249,17 @@ func (c *Compiler) Compile(node parser.Node) error {
 				return err
 			}
 		}
+
+		// Constant condition: compile only the taken branch, emit no jumps.
+		if condVal, ok := evalConstExpr(node.Cond); ok {
+			if !condVal.IsFalsy() {
+				return c.Compile(node.Body)
+			} else if node.Else != nil {
+				return c.Compile(node.Else)
+			}
+			return nil
+		}
+
 		if err := c.Compile(node.Cond); err != nil {
 			return err
 		}
@@ -1453,6 +1470,140 @@ func (c *Compiler) error(node parser.Node, err error) error {
 		Node:    node,
 		Err:     err,
 	}
+}
+
+// emitFoldedConst emits the minimal instruction(s) to push a compile-time
+// constant value onto the stack.
+func (c *Compiler) emitFoldedConst(node parser.Node, val Object) error {
+	switch val {
+	case TrueValue:
+		c.emit(node, parser.OpTrue)
+	case FalseValue:
+		c.emit(node, parser.OpFalse)
+	case UndefinedValue:
+		c.emit(node, parser.OpNull)
+	default:
+		if s, ok := val.(*String); ok && len(s.Value) > MaxStringLen {
+			return c.error(node, ErrStringLimit)
+		}
+		c.emit(node, parser.OpConstant, c.addConstant(val))
+	}
+	return nil
+}
+
+// evalConstExpr tries to evaluate a pure expression at compile time.
+// It returns (result, true) when every operand is a literal or folds
+// recursively to one. It returns (nil, false) when any operand is
+// non-constant or the operation would produce a runtime error (e.g.
+// division by zero) — in that case the caller falls through to normal
+// code generation.
+func evalConstExpr(node parser.Expr) (Object, bool) {
+	switch n := node.(type) {
+	case *parser.IntLit:
+		return Int{Value: n.Value}, true
+	case *parser.FloatLit:
+		return Float{Value: n.Value}, true
+	case *parser.StringLit:
+		return &String{Value: n.Value}, true
+	case *parser.CharLit:
+		return Char{Value: n.Value}, true
+	case *parser.BoolLit:
+		if n.Value {
+			return TrueValue, true
+		}
+		return FalseValue, true
+	case *parser.UndefinedLit:
+		return UndefinedValue, true
+	case *parser.ParenExpr:
+		return evalConstExpr(n.Expr)
+
+	case *parser.UnaryExpr:
+		operand, ok := evalConstExpr(n.Expr)
+		if !ok {
+			return nil, false
+		}
+		switch n.Token {
+		case token.Not:
+			if operand.IsFalsy() {
+				return TrueValue, true
+			}
+			return FalseValue, true
+		case token.Sub:
+			switch o := operand.(type) {
+			case Int:
+				return Int{Value: -o.Value}, true
+			case Float:
+				return Float{Value: -o.Value}, true
+			}
+		case token.Xor:
+			if o, ok := operand.(Int); ok {
+				return Int{Value: ^o.Value}, true
+			}
+		case token.Add:
+			return operand, true
+		}
+		return nil, false
+
+	case *parser.BinaryExpr:
+		// &&/|| preserve the actual value (not just bool), so fold them
+		// separately using short-circuit semantics.
+		if n.Token == token.LAnd || n.Token == token.LOr {
+			lhs, ok := evalConstExpr(n.LHS)
+			if !ok {
+				return nil, false
+			}
+			if n.Token == token.LAnd {
+				if lhs.IsFalsy() {
+					return lhs, true // short-circuit: false && _ == lhs
+				}
+			} else {
+				if !lhs.IsFalsy() {
+					return lhs, true // short-circuit: true || _ == lhs
+				}
+			}
+			return evalConstExpr(n.RHS)
+		}
+
+		lhs, ok := evalConstExpr(n.LHS)
+		if !ok {
+			return nil, false
+		}
+		rhs, ok := evalConstExpr(n.RHS)
+		if !ok {
+			return nil, false
+		}
+
+		// Equality is handled by Equals(), not BinaryOp().
+		switch n.Token {
+		case token.Equal:
+			if lhs.Equals(rhs) {
+				return TrueValue, true
+			}
+			return FalseValue, true
+		case token.NotEqual:
+			if lhs.Equals(rhs) {
+				return FalseValue, true
+			}
+			return TrueValue, true
+		}
+
+		// All other binary ops: delegate to the object's BinaryOp method.
+		// If the operation would error or panic at runtime (e.g. div-by-zero,
+		// type mismatch), return false so the caller generates normal runtime code.
+		result, err := func() (res Object, retErr error) {
+			defer func() {
+				if r := recover(); r != nil {
+					retErr = fmt.Errorf("panic: %v", r)
+				}
+			}()
+			return lhs.BinaryOp(n.Token, rhs)
+		}()
+		if err != nil {
+			return nil, false
+		}
+		return result, true
+	}
+	return nil, false
 }
 
 func (c *Compiler) errorf(
