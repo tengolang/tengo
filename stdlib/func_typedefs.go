@@ -174,8 +174,9 @@ func FuncARSs(fn func() []string) tengo.CallableFunc {
 		if len(args) != 0 {
 			return nil, tengo.ErrWrongNumArguments
 		}
-		arr := &tengo.Array{}
-		for _, elem := range fn() {
+		res := fn()
+		arr := &tengo.Array{Value: make([]tengo.Object, 0, len(res))}
+		for _, elem := range res {
 			if len(elem) > tengo.MaxStringLen {
 				return nil, tengo.ErrStringLimit
 			}
@@ -196,7 +197,7 @@ func FuncARIsE(fn func() ([]int, error)) tengo.CallableFunc {
 		if err != nil {
 			return wrapError(err), nil
 		}
-		arr := &tengo.Array{}
+		arr := &tengo.Array{Value: make([]tengo.Object, 0, len(res))}
 		for _, v := range res {
 			arr.Value = append(arr.Value, tengo.Int{Value: int64(v)})
 		}
@@ -220,7 +221,7 @@ func FuncAIRIs(fn func(int) []int) tengo.CallableFunc {
 			}
 		}
 		res := fn(i1)
-		arr := &tengo.Array{}
+		arr := &tengo.Array{Value: make([]tengo.Object, 0, len(res))}
 		for _, v := range res {
 			arr.Value = append(arr.Value, tengo.Int{Value: int64(v)})
 		}
@@ -477,7 +478,7 @@ func FuncASRSs(fn func(string) []string) tengo.CallableFunc {
 			}
 		}
 		res := fn(s1)
-		arr := &tengo.Array{}
+		arr := &tengo.Array{Value: make([]tengo.Object, 0, len(res))}
 		for _, elem := range res {
 			if len(elem) > tengo.MaxStringLen {
 				return nil, tengo.ErrStringLimit
@@ -581,17 +582,18 @@ func FuncASSRSs(fn func(string, string) []string) tengo.CallableFunc {
 		s2, ok := tengo.ToString(args[1])
 		if !ok {
 			return nil, tengo.ErrInvalidArgumentType{
-				Name:     "first",
+				Name:     "second",
 				Expected: "string(compatible)",
 				Found:    args[1].TypeName(),
 			}
 		}
-		arr := &tengo.Array{}
-		for _, res := range fn(s1, s2) {
-			if len(res) > tengo.MaxStringLen {
+		res := fn(s1, s2)
+		arr := &tengo.Array{Value: make([]tengo.Object, 0, len(res))}
+		for _, elem := range res {
+			if len(elem) > tengo.MaxStringLen {
 				return nil, tengo.ErrStringLimit
 			}
-			arr.Value = append(arr.Value, &tengo.String{Value: res})
+			arr.Value = append(arr.Value, &tengo.String{Value: elem})
 		}
 		return arr, nil
 	}
@@ -628,12 +630,13 @@ func FuncASSIRSs(fn func(string, string, int) []string) tengo.CallableFunc {
 				Found:    args[2].TypeName(),
 			}
 		}
-		arr := &tengo.Array{}
-		for _, res := range fn(s1, s2, i3) {
-			if len(res) > tengo.MaxStringLen {
+		res := fn(s1, s2, i3)
+		arr := &tengo.Array{Value: make([]tengo.Object, 0, len(res))}
+		for _, elem := range res {
+			if len(elem) > tengo.MaxStringLen {
 				return nil, tengo.ErrStringLimit
 			}
-			arr.Value = append(arr.Value, &tengo.String{Value: res})
+			arr.Value = append(arr.Value, &tengo.String{Value: elem})
 		}
 		return arr, nil
 	}
@@ -659,7 +662,7 @@ func FuncASSRI(fn func(string, string) int) tengo.CallableFunc {
 			return nil, tengo.ErrInvalidArgumentType{
 				Name:     "second",
 				Expected: "string(compatible)",
-				Found:    args[0].TypeName(),
+				Found:    args[1].TypeName(),
 			}
 		}
 		return tengo.Int{Value: int64(fn(s1, s2))}, nil
@@ -1014,7 +1017,7 @@ func FuncAIRSsE(fn func(int) ([]string, error)) tengo.CallableFunc {
 		if err != nil {
 			return wrapError(err), nil
 		}
-		arr := &tengo.Array{}
+		arr := &tengo.Array{Value: make([]tengo.Object, 0, len(res))}
 		for _, r := range res {
 			if len(r) > tengo.MaxStringLen {
 				return nil, tengo.ErrStringLimit
