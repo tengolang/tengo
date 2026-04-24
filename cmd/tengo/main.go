@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/ganehag/tengo/v3"
+	"github.com/ganehag/tengo/v3/internal/buildinfo"
 	"github.com/ganehag/tengo/v3/parser"
 	"github.com/ganehag/tengo/v3/stdlib"
 )
@@ -26,7 +27,6 @@ var (
 	showHelp      bool
 	showVersion   bool
 	resolvePath   bool // TODO Remove this flag at version 3
-	version       = "dev"
 )
 
 func init() {
@@ -43,7 +43,7 @@ func main() {
 		doHelp()
 		os.Exit(2)
 	} else if showVersion {
-		fmt.Println(version)
+		fmt.Println(buildinfo.Version())
 		return
 	}
 
