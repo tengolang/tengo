@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math"
@@ -58,14 +59,15 @@ out = fib(%d, 0, 1)`, n)
 func main() {
 	n := flag.Int("n", 35, "fibonacci input")
 	count := flag.Int("count", 3, "number of runs (minimum is reported)")
+	timeout := flag.Duration("timeout", 30*time.Second, "per-run timeout")
 	flag.Parse()
 
 	for _, b := range benchmarks {
-		run(b, *n, *count)
+		run(b, *n, *count, *timeout)
 	}
 }
 
-func run(b benchmark, n, count int) {
+func run(b benchmark, n, count int, timeout time.Duration) {
 	goMin := time.Duration(math.MaxInt64)
 	for i := 0; i < count; i++ {
 		start := time.Now()
@@ -83,7 +85,9 @@ func run(b benchmark, n, count int) {
 	vmMin := time.Duration(math.MaxInt64)
 
 	for i := 0; i < count; i++ {
-		pt, ct, vt, result, err := runBench(src)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		pt, ct, vt, result, err := runBench(ctx, src)
+		cancel()
 		if err != nil {
 			panic(fmt.Errorf("%s: %w", b.name, err))
 		}
@@ -131,7 +135,7 @@ func fibTC2(n, a, b int) int {
 	return fibTC2(n-1, b, a+b)
 }
 
-func runBench(src []byte) (parseTime, compileTime, runTime time.Duration, result tengo.Object, err error) {
+func runBench(ctx context.Context, src []byte) (parseTime, compileTime, runTime time.Duration, result tengo.Object, err error) {
 	fileSet := parser.NewFileSet()
 	inputFile := fileSet.AddFile("bench", -1, len(src))
 
@@ -161,7 +165,7 @@ func runBench(src []byte) (parseTime, compileTime, runTime time.Duration, result
 	globals := make([]tengo.Object, tengo.GlobalsSize)
 	start = time.Now()
 	v := tengo.NewVM(bytecode, globals, -1)
-	if rerr := v.Run(); rerr != nil {
+	if rerr := v.RunContext(ctx); rerr != nil {
 		runTime = time.Since(start)
 		err = rerr
 		return

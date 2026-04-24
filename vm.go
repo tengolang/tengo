@@ -1,6 +1,7 @@
 package tengo
 
 import (
+	"context"
 	"fmt"
 	"sync/atomic"
 
@@ -115,6 +116,20 @@ func (v *VM) Resume() error {
 		return err
 	}
 	return nil
+}
+
+// RunContext is like Run but stops the VM when ctx is cancelled.
+func (v *VM) RunContext(ctx context.Context) error {
+	ch := make(chan error, 1)
+	go func() { ch <- v.Run() }()
+	select {
+	case <-ctx.Done():
+		v.Abort()
+		<-ch
+		return ctx.Err()
+	case err := <-ch:
+		return err
+	}
 }
 
 // Run starts the execution.
