@@ -53,26 +53,27 @@ fmt.println(sum("", [1, 2, 3]))  // "123"
 
 | | fib(35) | fibt(35) |  Language (Type)  |
 | :--- |    ---: |     ---: |  :---: |
-| [**Tengo**](https://github.com/tengolang/tengo) | `2,315ms` | `3ms` | Tengo (VM) |
-| [go-lua](https://github.com/Shopify/go-lua) | `4,028ms` | `3ms` | Lua (VM) |
-| [GopherLua](https://github.com/yuin/gopher-lua) | `4,409ms` | `3ms` | Lua (VM) |
-| [goja](https://github.com/dop251/goja) | `5,194ms` | `4ms` | JavaScript (VM) |
-| [starlark-go](https://github.com/google/starlark-go) | `6,954ms` | `3ms` | Starlark (Interpreter) |
-| [gpython](https://github.com/go-python/gpython) | `11,324ms` | `4ms` | Python (Interpreter) |
-| [Yaegi](https://github.com/containous/yaegi) | `11,715ms` | `10ms` | Yaegi (Interpreter) |
-| [otto](https://github.com/robertkrimen/otto) | `48,539ms` | `6ms` | JavaScript (Interpreter) |
-| [Anko](https://github.com/mattn/anko) | `52,821ms` | `6ms` | Anko (Interpreter) |
+| [**Tengo**](https://github.com/tengolang/tengo) | `1,477ms` | `0ms` | Tengo (VM) |
+| [go-lua](https://github.com/Shopify/go-lua) | `1,646ms` | `1ms` | Lua (VM) |
+| [GopherLua](https://github.com/yuin/gopher-lua) | `1,874ms` | `1ms` | Lua (VM) |
+| [goja](https://github.com/dop251/goja) | `2,540ms` | `1ms` | JavaScript (VM) |
+| [starlark-go](https://github.com/google/starlark-go) | `4,210ms` | `1ms` | Starlark (Interpreter) |
+| [gpython](https://github.com/go-python/gpython) | `7,157ms` | `2ms` | Python (Interpreter) |
+| [Yaegi](https://github.com/traefik/yaegi) | `8,869ms` | `6ms` | Yaegi (Interpreter) |
+| [otto](https://github.com/robertkrimen/otto) | `36,444ms` | `5ms` | JavaScript (Interpreter) |
+| [Anko](https://github.com/mattn/anko) | `38,744ms` | `2ms` | Anko (Interpreter) |
 | - | - | - | - |
-| Go | `47ms` | `2ms` | Go (Native) |
-| Lua | `756ms` | `2ms` | Lua (Native) |
-| Python | `1,907ms` | `14ms` | Python2 (Native) |
+| Go | `33ms` | `0ms` | Go (Native) |
+| Lua | `583ms` | `1ms` | Lua (Native) |
+| Python | `1,208ms` | `5ms` | Python 2 (Native) |
+| Python | `791ms` | `9ms` | Python 3 (Native) |
 
-_* [fib(35)](https://github.com/tengolang/tengobench/blob/master/code/fib.tengo):
+_* [fib(35)](https://github.com/tengolang/tengobench/blob/master/testdata/bench/fib.tengo):
 Fibonacci(35)_  
-_* [fibt(35)](https://github.com/tengolang/tengobench/blob/master/code/fibtc.tengo):
+_* [fibt(35)](https://github.com/tengolang/tengobench/blob/master/testdata/bench/fibtc.tengo):
 [tail-call](https://en.wikipedia.org/wiki/Tail_call) version of Fibonacci(35)_  
 _* **Go** does not read the source code from file, while all other cases do_  
-_* See [here](https://github.com/tengolang/tengobench) for commands/codes used_
+_* See [here](https://github.com/tengolang/tengo/cmd/bench) for commands/codes used_
 
 ## Quick Start
 
