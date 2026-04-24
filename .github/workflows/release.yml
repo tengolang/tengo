@@ -10,16 +10,23 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
-    if: github.event.base_ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: goreleaser/goreleaser-action@v6
+      - name: Ensure tag is on master
+        run: |
+          git fetch origin master
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "Tag is not on master branch. Exiting."
+            exit 1
+          fi
+
+      - uses: goreleaser/goreleaser-action@v7
         with:
-          version: latest
+          version: "~> v2"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
