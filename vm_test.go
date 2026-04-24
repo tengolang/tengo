@@ -1044,7 +1044,7 @@ c := func(a) {
    a()
 }
 b(a, c)
-`, nil, "Runtime Error: not callable: int\n\tat test:7:4\n\tat test:3:4\n\tat test:9:1")
+`, nil, "runtime error: not callable: int\n\tat test:7:4\n\tat test:3:4\n\tat test:9:1")
 }
 
 func TestChar(t *testing.T) {
@@ -1164,16 +1164,16 @@ func testEquality(t *testing.T, lhs, rhs string, expected bool) {
 func TestVMErrorInfo(t *testing.T) {
 	expectError(t, `a := 5
 a + "boo"`,
-		nil, "Runtime Error: invalid operation: int + string\n\tat test:2:1")
+		nil, "runtime error: invalid operation: int + string\n\tat test:2:1")
 
 	expectError(t, `a := 5
 b := a(5)`,
-		nil, "Runtime Error: not callable: int\n\tat test:2:6")
+		nil, "runtime error: not callable: int\n\tat test:2:6")
 
 	expectError(t, `a := 5
 b := {}
 b.x.y = 10`,
-		nil, "Runtime Error: not index-assignable: undefined\n\tat test:3:1")
+		nil, "runtime error: not index-assignable: undefined\n\tat test:3:1")
 
 	expectError(t, `
 a := func() {
@@ -1181,7 +1181,7 @@ a := func() {
 	b += "foo"
 }
 a()`,
-		nil, "Runtime Error: invalid operation: int + string\n\tat test:4:2")
+		nil, "runtime error: invalid operation: int + string\n\tat test:4:2")
 
 	expectError(t, `a := 5
 a + import("mod1")`, Opts().Module(
@@ -1194,7 +1194,7 @@ a + import("mod1")`, Opts().Module(
 export func() {
 	b := 5
 	return b + "foo"
-}`), "Runtime Error: invalid operation: int + string\n\tat mod1:4:9")
+}`), "runtime error: invalid operation: int + string\n\tat mod1:4:9")
 
 	expectError(t, `a := import("mod1")()`,
 		Opts().Module(
@@ -1204,16 +1204,16 @@ export func() {
 export func() {
 	b := 5
 	return b + "foo"
-}`), "Runtime Error: invalid operation: int + string\n\tat mod2:4:9")
+}`), "runtime error: invalid operation: int + string\n\tat mod2:4:9")
 
 	expectError(t, `a := [1, 2, 3]; b := a[:"invalid"];`, nil,
-		"Runtime Error: invalid slice index type: string")
+		"runtime error: invalid slice index type: string")
 	expectError(t, `a := immutable([4, 5, 6]); b := a[:false];`, nil,
-		"Runtime Error: invalid slice index type: bool")
+		"runtime error: invalid slice index type: bool")
 	expectError(t, `a := "hello"; b := a[:1.23];`, nil,
-		"Runtime Error: invalid slice index type: float")
+		"runtime error: invalid slice index type: float")
 	expectError(t, `a := bytes("world"); b := a[:time(1)];`, nil,
-		"Runtime Error: invalid slice index type: time")
+		"runtime error: invalid slice index type: time")
 }
 
 func TestVMErrorUnwrap(t *testing.T) {
@@ -1238,7 +1238,7 @@ func TestVMErrorUnwrap(t *testing.T) {
 
 	expectError(t, `user_func()`,
 		Opts().Symbol("user_func", userFunc(userErr)),
-		"Runtime Error: "+userErr.Error(),
+		"runtime error: "+userErr.Error(),
 	)
 	expectErrorIs(t, `user_func()`,
 		Opts().Symbol("user_func", userFunc(userErr)),
@@ -1265,7 +1265,7 @@ func TestVMErrorUnwrap(t *testing.T) {
 
 	expectError(t, `import("mod1").afunction()`,
 		Opts().Module("mod1", userModule(userErr)),
-		"Runtime Error: "+userErr.Error(),
+		"runtime error: "+userErr.Error(),
 	)
 	expectErrorIs(t, `import("mod1").afunction()`,
 		Opts().Module("mod1", userModule(userErr)),
@@ -1273,7 +1273,7 @@ func TestVMErrorUnwrap(t *testing.T) {
 	)
 	expectError(t, `import("mod1").afunction()`,
 		Opts().Module("mod1", userModule(wrapUserErr)),
-		"Runtime Error: "+wrapUserErr.Error(),
+		"runtime error: "+wrapUserErr.Error(),
 	)
 	expectErrorIs(t, `import("mod1").afunction()`,
 		Opts().Module("mod1", userModule(wrapUserErr)),
@@ -1611,10 +1611,10 @@ func TestFunction(t *testing.T) {
 		nil, ARR{"a", ARR{}, 7})
 
 	expectError(t, `f := func(a, b, ...x) { return [a, b, x]; }; f();`, nil,
-		"Runtime Error: wrong number of arguments: want>=2, got=0\n\tat test:1:46")
+		"runtime error: wrong number of arguments: want>=2, got=0\n\tat test:1:46")
 
 	expectError(t, `f := func(a, b, ...x) { return [a, b, x]; }; f(1);`, nil,
-		"Runtime Error: wrong number of arguments: want>=2, got=1\n\tat test:1:46")
+		"runtime error: wrong number of arguments: want>=2, got=1\n\tat test:1:46")
 
 	expectRun(t, `f := func(x) { return x; }; out = f(5);`, nil, 5)
 	expectRun(t, `f := func(x) { return x * 2; }; out = f(5);`, nil, 10)
@@ -2855,7 +2855,7 @@ b(a)`,
 export func(a) {
    a()
 }
-`), "Runtime Error: not callable: int\n\tat mod1:3:4\n\tat test:4:1")
+`), "runtime error: not callable: int\n\tat mod1:3:4\n\tat test:4:1")
 
 	// module skipping export
 	expectRun(t, `out = import("mod0")`,
@@ -3744,16 +3744,16 @@ func TestSpread(t *testing.T) {
 	`, nil, ARR{1, 2, 3, 2, 3, 4})
 
 	expectError(t, `func(a) {}([1, 2]...)`, nil,
-		"Runtime Error: wrong number of arguments: want=1, got=2")
+		"runtime error: wrong number of arguments: want=1, got=2")
 	expectError(t, `func(a, b, c) {}([1, 2]...)`, nil,
-		"Runtime Error: wrong number of arguments: want=3, got=2")
+		"runtime error: wrong number of arguments: want=3, got=2")
 }
 
 func TestSliceIndex(t *testing.T) {
-	expectError(t, `undefined[:1]`, nil, "Runtime Error: not indexable")
-	expectError(t, `123[-1:2]`, nil, "Runtime Error: not indexable")
-	expectError(t, `{}[:]`, nil, "Runtime Error: not indexable")
-	expectError(t, `a := 123[-1:2] ; a += 1`, nil, "Runtime Error: not indexable")
+	expectError(t, `undefined[:1]`, nil, "runtime error: not indexable")
+	expectError(t, `123[-1:2]`, nil, "runtime error: not indexable")
+	expectError(t, `{}[:]`, nil, "runtime error: not indexable")
+	expectError(t, `a := 123[-1:2] ; a += 1`, nil, "runtime error: not indexable")
 }
 
 func TestSwitch(t *testing.T) {

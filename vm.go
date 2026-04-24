@@ -104,7 +104,7 @@ func (v *VM) Resume() error {
 	if err != nil {
 		filePos := v.fileSet.Position(
 			v.curFrame.fn.SourcePos(v.ip - 1))
-		err = fmt.Errorf("Runtime Error: %w\n\tat %s", err, filePos)
+		err = fmt.Errorf("runtime error: %w\n\tat %s", err, filePos)
 		for v.framesIndex > 1 {
 			v.framesIndex--
 			v.curFrame = &v.frames[v.framesIndex-1]
@@ -133,7 +133,7 @@ func (v *VM) Run() (err error) {
 	if err != nil {
 		filePos := v.fileSet.Position(
 			v.curFrame.fn.SourcePos(v.ip - 1))
-		err = fmt.Errorf("Runtime Error: %w\n\tat %s",
+		err = fmt.Errorf("runtime error: %w\n\tat %s",
 			err, filePos)
 		for v.framesIndex > 1 {
 			v.framesIndex--

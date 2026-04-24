@@ -1219,12 +1219,6 @@ func (c *Compiler) leaveLoop() {
 	c.loopIndex--
 }
 
-func (c *Compiler) currentLoop() *loop {
-	if c.loopIndex >= 0 {
-		return c.loops[c.loopIndex]
-	}
-	return nil
-}
 
 // currentBreakTarget returns the innermost loop or switch context.
 func (c *Compiler) currentBreakTarget() *loop {

@@ -215,7 +215,7 @@ func (d *decodeState) literal() (tengo.Object, error) {
 			panic(phasePanicMsg)
 		}
 		if isFloat {
-			n, _ := strconv.ParseFloat(string(item), 10)
+			n, _ := strconv.ParseFloat(string(item), 64)
 			return tengo.Float{Value: n}, nil
 		}
 		n, _ := strconv.ParseInt(string(item), 10, 64)

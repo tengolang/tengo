@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/tengolang/tengo/v3"
@@ -113,7 +114,7 @@ var textModule = map[string]tengo.Object{
 	}, // split_n(s, sep, n) => [string]
 	"title": &tengo.UserFunction{
 		Name:  "title",
-		Value: FuncASRS(strings.Title),
+		Value: FuncASRS(toTitle),
 	}, // title(s) => string
 	"to_lower": &tengo.UserFunction{
 		Name:  "to_lower",
@@ -1074,3 +1075,16 @@ func doTextReplace(s, old, new string, n int) (string, bool) {
 
 	return string(t[0:w]), true
 }
+
+func toTitle(s string) string {
+	prev := ' '
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(prev) {
+			prev = r
+			return unicode.ToTitle(r)
+		}
+		prev = r
+		return r
+	}, s)
+}
+

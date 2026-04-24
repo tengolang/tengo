@@ -46,10 +46,6 @@ type fmtFlags struct {
 	plusV  bool
 	sharpV bool
 
-	// error-related flags.
-	inDetail    bool
-	needNewline bool
-	needColon   bool
 }
 
 // A formatter is the raw formatter used by Printf etc.
@@ -1173,7 +1169,7 @@ formatLoop:
 		}
 
 		if !afterIndex {
-			argNum, i, afterIndex = p.argNumber(argNum, format, i, len(a))
+			argNum, i, _ = p.argNumber(argNum, format, i, len(a))
 		}
 
 		if i >= end {

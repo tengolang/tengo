@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode"
 	"testing"
 	"time"
 
@@ -354,7 +355,16 @@ func TestScriptSourceModule(t *testing.T) {
 				Name: "title",
 				Value: func(args ...tengo.Object) (tengo.Object, error) {
 					s, _ := tengo.ToString(args[0])
-					return &tengo.String{Value: strings.Title(s)}, nil
+					prev := ' '
+					titled := strings.Map(func(r rune) rune {
+						if unicode.IsSpace(prev) {
+							prev = r
+							return unicode.ToTitle(r)
+						}
+						prev = r
+						return r
+					}, s)
+					return &tengo.String{Value: titled}, nil
 				}},
 		})
 	scr.SetImports(mods)

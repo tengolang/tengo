@@ -2,6 +2,7 @@ package tengo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -232,7 +233,7 @@ func (c *Compiled) RunContext(ctx context.Context) (err error) {
 			if r := recover(); r != nil {
 				switch e := r.(type) {
 				case string:
-					ch <- fmt.Errorf(e)
+					ch <- errors.New(e)
 				case error:
 					ch <- e
 				default:
