@@ -105,8 +105,9 @@ var languages = []langEntry{
 		typ: "Python (Interpreter)", binary: "gpython", ext: "py",
 	},
 	{
-		name: "Yaegi", link: "https://github.com/containous/yaegi",
+		name: "Yaegi", link: "https://github.com/traefik/yaegi",
 		typ: "Yaegi (Interpreter)", binary: "yaegi", ext: "yaegi",
+		flags: []string{"run"},
 	},
 	{
 		name: "otto", link: "https://github.com/robertkrimen/otto",
