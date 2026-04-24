@@ -862,8 +862,13 @@ func (o Float) IsFalsy() bool { return math.IsNaN(o.Value) }
 // Equals returns true if the value of the type is equal to the value of
 // another object.
 func (o Float) Equals(x Object) bool {
-	t, ok := x.(Float)
-	return ok && o.Value == t.Value
+	switch t := x.(type) {
+	case Float:
+		return o.Value == t.Value
+	case Int:
+		return o.Value == float64(t.Value)
+	}
+	return false
 }
 
 // ImmutableArray represents an immutable array of objects.
@@ -1230,8 +1235,13 @@ func (o Int) IsFalsy() bool { return o.Value == 0 }
 // Equals returns true if the value of the type is equal to the value of
 // another object.
 func (o Int) Equals(x Object) bool {
-	t, ok := x.(Int)
-	return ok && o.Value == t.Value
+	switch t := x.(type) {
+	case Int:
+		return o.Value == t.Value
+	case Float:
+		return float64(o.Value) == t.Value
+	}
+	return false
 }
 
 // Map represents a map of objects.
