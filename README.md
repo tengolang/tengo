@@ -61,10 +61,10 @@ fmt.println(sum("", [1, 2, 3]))  // "123"
 | otto        | JavaScript | ✗           | ✓             | ✗          | ~           | ✗          |
 | Anko        | Go-like    | ✗           | ✗             | ✗          | ✗           | ✓          |
 
-Legend:
-✓ = solid/native support
-~ = partial or host-enforced (not strict guarantees)
-✗ = not supported
+Legend:  
+✓ = solid/native support  
+~ = partial or host-enforced (not strict guarantees)  
+✗ = not supported  
 
 Notes:
 
