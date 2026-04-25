@@ -8,6 +8,22 @@ import (
 	"github.com/tengolang/tengo/v3/require"
 )
 
+// readBytes replicates the 7-bytes-per-Int63 algorithm used by the rand
+// module's "read" function, without calling the deprecated (*rand.Rand).Read.
+func readBytes(r *rand.Rand, p []byte) {
+	var val int64
+	var pos int8
+	for i := range p {
+		if pos == 0 {
+			val = r.Int63()
+			pos = 7
+		}
+		p[i] = byte(val)
+		val >>= 8
+		pos--
+	}
+}
+
 func TestRand(t *testing.T) {
 	var seed int64 = 1234
 	r := rand.New(rand.NewSource(seed))
@@ -22,8 +38,8 @@ func TestRand(t *testing.T) {
 
 	buf1 := make([]byte, 10)
 	buf2 := &tengo.Bytes{Value: make([]byte, 10)}
-	n, _ := r.Read(buf1)
-	module(t, "rand").call("read", buf2).expect(n)
+	readBytes(r, buf1)
+	module(t, "rand").call("read", buf2).expect(len(buf1))
 	require.Equal(t, buf1, buf2.Value)
 
 	seed = 9191
@@ -39,7 +55,7 @@ func TestRand(t *testing.T) {
 
 	buf1 = make([]byte, 12)
 	buf2 = &tengo.Bytes{Value: make([]byte, 12)}
-	n, _ = r.Read(buf1)
-	randObj.call("read", buf2).expect(n)
+	readBytes(r, buf1)
+	randObj.call("read", buf2).expect(len(buf1))
 	require.Equal(t, buf1, buf2.Value)
 }

@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/tengolang/tengo/v3/parser"
 	"github.com/tengolang/tengo/v3/require"
@@ -260,6 +259,3 @@ func countLines(s string) int {
 	return n
 }
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
