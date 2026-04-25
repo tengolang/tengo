@@ -1347,6 +1347,8 @@ func (v *VM) run() {
 		case parser.OpDup:
 			v.stack[sp] = v.stack[sp-1]
 			sp++
+		case parser.OpSwap:
+			v.stack[sp-1], v.stack[sp-2] = v.stack[sp-2], v.stack[sp-1]
 		default:
 			v.err = fmt.Errorf("unknown opcode: %d", curInsts[ip])
 			v.ip = ip

@@ -49,6 +49,7 @@ const (
 	OpSuspend                     // Suspend VM
 	OpDup                         // Duplicate top of stack
 	OpUnpack                      // Unpack multi-value into n stack slots
+	OpSwap                        // Swap top two stack values
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -97,6 +98,7 @@ var OpcodeNames = [...]string{
 	OpSuspend:       "SUSPEND",
 	OpDup:           "DUP",
 	OpUnpack:        "UNPACK",
+	OpSwap:          "SWAP",
 }
 
 // OpcodeOperands is the number of operands.
@@ -145,6 +147,7 @@ var OpcodeOperands = [...][]int{
 	OpSuspend:       {},
 	OpDup:           {},
 	OpUnpack:        {1},
+	OpSwap:          {},
 }
 
 // ReadOperands reads operands from the bytecode.

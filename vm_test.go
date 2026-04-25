@@ -4525,3 +4525,60 @@ d := c * 2
 	require.Equal(t, int64(3), compiled.Get("c").Int64())
 	require.Equal(t, int64(6), compiled.Get("d").Int64())
 }
+
+func TestMethodCallSyntax(t *testing.T) {
+	// basic: method with no args, self used for field access
+	expectRun(t, `
+obj := {name: "tengo", greet: func(self) { return "hello " + self.name }}
+out = obj::greet()
+`, nil, "hello tengo")
+
+	// args passed after implicit self
+	expectRun(t, `
+obj := {x: 10, add: func(self, n) { return self.x + n }}
+out = obj::add(5)
+`, nil, 15)
+
+	// multiple args
+	expectRun(t, `
+obj := {mul: func(self, a, b) { return self.x * a + b }, x: 3}
+out = obj::mul(4, 2)
+`, nil, 14)
+
+	// receiver with side effects is evaluated exactly once
+	expectRun(t, `
+calls := 0
+make := func() {
+	calls += 1
+	return {id: calls, get_id: func(self) { return self.id }}
+}
+result := make()::get_id()
+out = [result, calls]
+`, nil, ARR{1, 1})
+
+	// chained method calls
+	expectRun(t, `
+obj := {
+	val: 0,
+	set: func(self, n) { self.val = n; return self },
+	get: func(self) { return self.val },
+}
+out = obj::set(42)::get()
+`, nil, 42)
+
+	// method call result used in expression
+	expectRun(t, `
+v := {n: 7, double: func(self) { return self.n * 2 }}
+out = v::double() + 1
+`, nil, 15)
+
+	// varargs forwarded correctly
+	expectRun(t, `
+obj := {sum: func(self, ...args) {
+	total := 0
+	for a in args { total += a }
+	return total
+}}
+out = obj::sum(1, 2, 3, 4)
+`, nil, 10)
+}

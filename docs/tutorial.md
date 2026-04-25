@@ -420,6 +420,45 @@ a := {"in": true}
 a["func"] = ""
 ```
 
+### Method-Call Syntax
+
+When a map field holds a function that operates on the map itself, the `::` operator calls it with the map passed automatically as the first argument.
+
+```
+obj::method(args)  ≡  obj.method(obj, args)
+```
+
+The receiver (`obj`) is evaluated exactly once, so side-effectful expressions like `make_obj()::method()` call `make_obj` only once.
+
+```golang
+counter := {
+    n:   0,
+    inc: func(self, by) { self.n += by },
+    get: func(self) { return self.n },
+}
+
+counter::inc(1)
+counter::inc(2)
+v := counter::get()  // v == 3
+```
+
+Method calls chain left-to-right. The receiver of the outer call is the return value of the inner call.
+
+```golang
+builder := {
+    parts: [],
+    add:   func(self, s) { self.parts = self.parts + [s]; return self },
+    build: func(self)    { return self.parts },
+}
+
+result := builder::add("a")::add("b")::add("c")::build()
+// result == ["a", "b", "c"]
+```
+
+> **Why `::` and not `:`?** Tengo already uses `:` as the ternary separator
+> (`cond ? a : b`), which would make single-colon method calls ambiguous. The
+> double-colon is unambiguous and is consistent with C++ and other languages.
+
 ## Statements
 
 ### If Statement
@@ -570,3 +609,8 @@ Unlike Go, Tengo does not have the following:
 - Defer statement
 - Panic
 - Type assertion
+
+Tengo adds the following that Go does not have:
+
+- Ternary operator (`a ? b : c`)
+- Method-call syntax (`obj::method(args)`) — passes the receiver as the first argument
