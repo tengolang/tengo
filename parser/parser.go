@@ -257,6 +257,9 @@ L:
 			x = p.parseIndexOrSlice(x)
 		case token.LParen:
 			x = p.parseCall(x)
+		case token.DoubleColon:
+			p.next()
+			x = p.parseMethodCall(x)
 		default:
 			break L
 		}
@@ -289,6 +292,47 @@ func (p *Parser) parseCall(x Expr) *CallExpr {
 	rparen := p.expect(token.RParen)
 	return &CallExpr{
 		Func:     x,
+		LParen:   lparen,
+		RParen:   rparen,
+		Ellipsis: ellipsis,
+		Args:     list,
+	}
+}
+
+func (p *Parser) parseMethodCall(recv Expr) *MethodCallExpr {
+	if p.trace {
+		defer untracep(tracep(p, "MethodCall"))
+	}
+
+	// parse method name as identifier, store as string constant (same as SelectorExpr.Sel)
+	sel := p.parseIdent()
+	method := &StringLit{
+		Value:    sel.Name,
+		ValuePos: sel.NamePos,
+		Literal:  sel.Name,
+	}
+
+	lparen := p.expect(token.LParen)
+	p.exprLevel++
+
+	var list []Expr
+	var ellipsis Pos
+	for p.token != token.RParen && p.token != token.EOF && !ellipsis.IsValid() {
+		list = append(list, p.parseExpr())
+		if p.token == token.Ellipsis {
+			ellipsis = p.pos
+			p.next()
+		}
+		if !p.expectComma(token.RParen, "call argument") {
+			break
+		}
+	}
+
+	p.exprLevel--
+	rparen := p.expect(token.RParen)
+	return &MethodCallExpr{
+		Recv:     recv,
+		Method:   method,
 		LParen:   lparen,
 		RParen:   rparen,
 		Ellipsis: ellipsis,

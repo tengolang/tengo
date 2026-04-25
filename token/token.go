@@ -66,6 +66,7 @@ const (
 	RBrace       // }
 	Semicolon    // ;
 	Colon        // :
+	DoubleColon  // ::
 	Question     // ?
 	_operatorEnd
 	_keywordBeg
@@ -146,6 +147,7 @@ var tokens = [...]string{
 	RBrace:       "}",
 	Semicolon:    ";",
 	Colon:        ":",
+	DoubleColon:  "::",
 	Question:     "?",
 	Break:        "break",
 	Continue:     "continue",

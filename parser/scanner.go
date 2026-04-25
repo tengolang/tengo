@@ -124,7 +124,7 @@ func (s *Scanner) Scan() (
 			tok = token.String
 			literal = s.scanRawString()
 		case ':':
-			tok = s.switch2(token.Colon, token.Define)
+			tok = s.switch3(token.Colon, token.Define, ':', token.DoubleColon)
 		case '.':
 			tok = token.Period
 			if s.ch == '.' && s.peek() == '.' {

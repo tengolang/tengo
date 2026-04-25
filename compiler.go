@@ -530,6 +530,31 @@ func (c *Compiler) Compile(node parser.Node) error {
 			ellipsis = 1
 		}
 		c.emit(node, parser.OpCall, len(node.Args), ellipsis)
+	case *parser.MethodCallExpr:
+		// recv::method(args) desugars to recv.method(recv, args).
+		// The receiver is evaluated once: DUP keeps a copy as the self arg
+		// while the other copy is used for the method lookup via OpIndex.
+		// OpSwap then puts [method_fn, recv, args...] in callee-first order.
+		if err := c.Compile(node.Recv); err != nil {
+			return err
+		}
+		c.emit(node, parser.OpDup)
+		if err := c.Compile(node.Method); err != nil {
+			return err
+		}
+		c.emit(node, parser.OpIndex)
+		c.emit(node, parser.OpSwap)
+		for _, arg := range node.Args {
+			if err := c.Compile(arg); err != nil {
+				return err
+			}
+		}
+		ellipsis := 0
+		if node.Ellipsis.IsValid() {
+			ellipsis = 1
+		}
+		c.emit(node, parser.OpCall, len(node.Args)+1, ellipsis)
+
 	case *parser.ImportExpr:
 		if node.ModuleName == "" {
 			return c.errorf(node, "empty module name")

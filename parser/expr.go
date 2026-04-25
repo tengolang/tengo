@@ -141,6 +141,42 @@ func (e *CallExpr) String() string {
 	return e.Func.String() + "(" + strings.Join(args, ", ") + ")"
 }
 
+// MethodCallExpr represents a receiver method call: recv::method(args).
+// It is syntactic sugar for recv.method(recv, args): the receiver is
+// evaluated once, used both as the object for the method lookup and as the
+// first argument to the call.
+type MethodCallExpr struct {
+	Recv     Expr
+	Method   *StringLit // method name, stored as a string constant
+	LParen   Pos
+	Args     []Expr
+	Ellipsis Pos
+	RParen   Pos
+}
+
+func (e *MethodCallExpr) exprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *MethodCallExpr) Pos() Pos {
+	return e.Recv.Pos()
+}
+
+// End returns the position of first character immediately after the node.
+func (e *MethodCallExpr) End() Pos {
+	return e.RParen + 1
+}
+
+func (e *MethodCallExpr) String() string {
+	var args []string
+	for _, a := range e.Args {
+		args = append(args, a.String())
+	}
+	if len(args) > 0 && e.Ellipsis.IsValid() {
+		args[len(args)-1] = args[len(args)-1] + "..."
+	}
+	return e.Recv.String() + "::" + e.Method.Value + "(" + strings.Join(args, ", ") + ")"
+}
+
 // CharLit represents a character literal.
 type CharLit struct {
 	Value    rune
