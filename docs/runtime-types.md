@@ -66,7 +66,7 @@ should evaluate to `false` (e.g. for condition expression of `if` statement).
   - `bytes(N)`: as a special case this will create a Bytes variable with the
   given size `N` (only if `N` is int)
 - `time(x)`: tries to convert `x` into time; returns `undefined` if failed
-- See [Builtins](https://github.com/tengolang/tengo/blob/master/docs/builtins.md) for
+- See [Builtins](https://github.com/tengolang/tengo/blob/main/docs/builtins.md) for
 the full list of builtin functions.
 
 ## Type Checking Builtin Functions
@@ -86,5 +86,5 @@ the full list of builtin functions.
 - `is_time(x)`: return `true` if `x` is time; `false` otherwise
 - `is_error(x)`: returns `true` if `x` is error; `false` otherwise
 - `is_undefined(x)`: returns `true` if `x` is undefined; `false` otherwise
-- See [Builtins](https://github.com/tengolang/tengo/blob/master/docs/builtins.md) for
+- See [Builtins](https://github.com/tengolang/tengo/blob/main/docs/builtins.md) for
   the full list of builtin functions.

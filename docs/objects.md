@@ -60,7 +60,7 @@ IsFalsy() bool
 ```
 
 IsFalsy method should return true if the underlying value is considered to be
-[falsy](https://github.com/tengolang/tengo/blob/master/docs/runtime-types.md#objectisfalsy).
+[falsy](https://github.com/tengolang/tengo/blob/main/docs/runtime-types.md#objectisfalsy).
 
 ```golang
 Equals(o Object) bool
@@ -220,7 +220,7 @@ These are the basic types Tengo runtime supports out of the box:
   [ReturnValue](https://pkg.go.dev/github.com/tengolang/tengo/v3#ReturnValue)
 
 See
-[Runtime Types](https://github.com/tengolang/tengo/blob/master/docs/runtime-types.md)
+[Runtime Types](https://github.com/tengolang/tengo/blob/main/docs/runtime-types.md)
 for more details on these runtime types.
 
 ## User Object Types

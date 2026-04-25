@@ -343,7 +343,7 @@ Users can add and use a custom user type in Tengo code by implementing
 [Object](https://pkg.go.dev/github.com/tengolang/tengo/v3#Object) interface. Tengo runtime
 will treat the user types in the same way it does to the runtime types with no
 performance overhead. See
-[Object Types](https://github.com/tengolang/tengo/blob/master/docs/objects.md) for
+[Object Types](https://github.com/tengolang/tengo/blob/main/docs/objects.md) for
 more details.
 
 ## Sandbox Environments
@@ -355,7 +355,7 @@ the following Script functions.
 
 SetImports sets the import modules with corresponding names. Script **does not**
 include any modules by default. You can use this function to include the
-[Standard Library](https://github.com/tengolang/tengo/blob/master/docs/stdlib.md).
+[Standard Library](https://github.com/tengolang/tengo/blob/main/docs/stdlib.md).
 
 ```golang
 s := tengo.NewScript([]byte(`math := import("math"); a := math.abs(-19.84)`))

@@ -36,15 +36,15 @@ fmt.println(sum("", [1, 2, 3]))  // "123"
 ## Features
 
 - Simple and highly readable
-  [Syntax](https://github.com/tengolang/tengo/blob/master/docs/tutorial.md)
+  [Syntax](https://github.com/tengolang/tengo/blob/main/docs/tutorial.md)
   - Dynamic typing with type coercion
   - Higher-order functions and closures
   - Immutable values
-- [Securely Embeddable](https://github.com/tengolang/tengo/blob/master/docs/interoperability.md)
-  and [Extensible](https://github.com/tengolang/tengo/blob/master/docs/objects.md)
+- [Securely Embeddable](https://github.com/tengolang/tengo/blob/main/docs/interoperability.md)
+  and [Extensible](https://github.com/tengolang/tengo/blob/main/docs/objects.md)
 - Compiler/runtime written in native Go _(no external deps or cgo)_
 - Executable as a
-  [standalone](https://github.com/tengolang/tengo/blob/master/docs/tengo-cli.md)
+  [standalone](https://github.com/tengolang/tengo/blob/main/docs/tengo-cli.md)
   language / REPL
 - Use cases: rules engine, [state machine](https://github.com/d5/go-fsm),
   data pipeline, [transpiler](https://github.com/tengolang/tengo2lua)
@@ -141,14 +141,14 @@ fmt.Println(res) // "success"
 
 ## References
 
-- [Language Syntax](https://github.com/tengolang/tengo/blob/master/docs/tutorial.md)
-- [Object Types](https://github.com/tengolang/tengo/blob/master/docs/objects.md)
-- [Runtime Types](https://github.com/tengolang/tengo/blob/master/docs/runtime-types.md)
-  and [Operators](https://github.com/tengolang/tengo/blob/master/docs/operators.md)
-- [Builtin Functions](https://github.com/tengolang/tengo/blob/master/docs/builtins.md)
-- [Interoperability](https://github.com/tengolang/tengo/blob/master/docs/interoperability.md)
-- [Tengo CLI](https://github.com/tengolang/tengo/blob/master/docs/tengo-cli.md)
-- [Standard Library](https://github.com/tengolang/tengo/blob/master/docs/stdlib.md)
+- [Language Syntax](https://github.com/tengolang/tengo/blob/main/docs/tutorial.md)
+- [Object Types](https://github.com/tengolang/tengo/blob/main/docs/objects.md)
+- [Runtime Types](https://github.com/tengolang/tengo/blob/main/docs/runtime-types.md)
+  and [Operators](https://github.com/tengolang/tengo/blob/main/docs/operators.md)
+- [Builtin Functions](https://github.com/tengolang/tengo/blob/main/docs/builtins.md)
+- [Interoperability](https://github.com/tengolang/tengo/blob/main/docs/interoperability.md)
+- [Tengo CLI](https://github.com/tengolang/tengo/blob/main/docs/tengo-cli.md)
+- [Standard Library](https://github.com/tengolang/tengo/blob/main/docs/stdlib.md)
 - Syntax Highlighters: [VSCode](https://github.com/lissein/vscode-tengo), [Atom](https://github.com/tengolang/tengo-atom), [Vim](https://github.com/geseq/tengo-vim), [Emacs](https://github.com/CsBigDataHub/tengo-mode)
 - **Why the name Tengo?** It's from [1Q84](https://en.wikipedia.org/wiki/1Q84).
 
