@@ -7,70 +7,71 @@ import (
 	"github.com/tengolang/tengo/v3"
 )
 
-// globalRand is a goroutine-safe source for the module-level rand functions.
-// Re-created on seed() to provide deterministic output.
-var (
-	globalRandMu sync.Mutex
-	globalRand   = rand.New(rand.NewSource(rand.Int63())) //nolint:gosec
-)
+// seededRand is a goroutine-safe rand.Rand wrapper that supports re-seeding
+// via seed(), which replaces the internal pointer. Method values on *seededRand
+// always call through the pointer field, so they stay correct after re-seeding.
+type seededRand struct {
+	mu sync.Mutex
+	r  *rand.Rand
+}
 
-func gRandInt63() int64 {
-	globalRandMu.Lock()
-	v := globalRand.Int63()
-	globalRandMu.Unlock()
+func (s *seededRand) seed(n int64) {
+	s.mu.Lock()
+	s.r = rand.New(rand.NewSource(n))
+	s.mu.Unlock()
+}
+
+func (s *seededRand) int63() int64 {
+	s.mu.Lock()
+	v := s.r.Int63()
+	s.mu.Unlock()
 	return v
 }
 
-func gRandFloat64() float64 {
-	globalRandMu.Lock()
-	v := globalRand.Float64()
-	globalRandMu.Unlock()
+func (s *seededRand) float64() float64 {
+	s.mu.Lock()
+	v := s.r.Float64()
+	s.mu.Unlock()
 	return v
 }
 
-func gRandExpFloat64() float64 {
-	globalRandMu.Lock()
-	v := globalRand.ExpFloat64()
-	globalRandMu.Unlock()
+func (s *seededRand) int63n(n int64) int64 {
+	s.mu.Lock()
+	v := s.r.Int63n(n)
+	s.mu.Unlock()
 	return v
 }
 
-func gRandNormFloat64() float64 {
-	globalRandMu.Lock()
-	v := globalRand.NormFloat64()
-	globalRandMu.Unlock()
+func (s *seededRand) expFloat64() float64 {
+	s.mu.Lock()
+	v := s.r.ExpFloat64()
+	s.mu.Unlock()
 	return v
 }
 
-func gRandPerm(n int) []int {
-	globalRandMu.Lock()
-	v := globalRand.Perm(n)
-	globalRandMu.Unlock()
+func (s *seededRand) normFloat64() float64 {
+	s.mu.Lock()
+	v := s.r.NormFloat64()
+	s.mu.Unlock()
 	return v
 }
 
-func gRandInt63n(n int64) int64 {
-	globalRandMu.Lock()
-	v := globalRand.Int63n(n)
-	globalRandMu.Unlock()
+func (s *seededRand) perm(n int) []int {
+	s.mu.Lock()
+	v := s.r.Perm(n)
+	s.mu.Unlock()
 	return v
 }
 
-func gRandSeed(seed int64) {
-	globalRandMu.Lock()
-	globalRand = rand.New(rand.NewSource(seed))
-	globalRandMu.Unlock()
-}
-
-func gRandRead(p []byte) int {
-	globalRandMu.Lock()
-	readBytes(globalRand, p)
-	globalRandMu.Unlock()
+func (s *seededRand) read(p []byte) int {
+	s.mu.Lock()
+	readBytes(s.r, p)
+	s.mu.Unlock()
 	return len(p)
 }
 
 // readBytes fills p using r, extracting 7 bytes per Int63() call.
-// This replicates the algorithm from (*rand.Rand).Read without using
+// This replicates the algorithm from (*rand.Rand).Read without calling
 // the deprecated method.
 func readBytes(r *rand.Rand, p []byte) {
 	var val int64
@@ -86,38 +87,41 @@ func readBytes(r *rand.Rand, p []byte) {
 	}
 }
 
+// globalRand backs the module-level rand functions.
+var globalRand = &seededRand{r: rand.New(rand.NewSource(rand.Int63()))} //nolint:gosec
+
 var randModule = map[string]tengo.Object{
 	"int": &tengo.UserFunction{
 		Name:  "int",
-		Value: FuncARI64(gRandInt63),
+		Value: FuncARI64(globalRand.int63),
 	},
 	"float": &tengo.UserFunction{
 		Name:  "float",
-		Value: FuncARF(gRandFloat64),
+		Value: FuncARF(globalRand.float64),
 	},
 	"intn": &tengo.UserFunction{
 		Name:  "intn",
-		Value: FuncAI64RI64(gRandInt63n),
+		Value: FuncAI64RI64(globalRand.int63n),
 	},
 	"exp_float": &tengo.UserFunction{
 		Name:  "exp_float",
-		Value: FuncARF(gRandExpFloat64),
+		Value: FuncARF(globalRand.expFloat64),
 	},
 	"norm_float": &tengo.UserFunction{
 		Name:  "norm_float",
-		Value: FuncARF(gRandNormFloat64),
+		Value: FuncARF(globalRand.normFloat64),
 	},
 	"perm": &tengo.UserFunction{
 		Name:  "perm",
-		Value: FuncAIRIs(gRandPerm),
+		Value: FuncAIRIs(globalRand.perm),
 	},
 	"seed": &tengo.UserFunction{
 		Name:  "seed",
-		Value: FuncAI64R(gRandSeed),
+		Value: FuncAI64R(globalRand.seed),
 	},
 	"read": &tengo.UserFunction{
 		Name: "read",
-		Value: func(args ...tengo.Object) (ret tengo.Object, err error) {
+		Value: func(args ...tengo.Object) (tengo.Object, error) {
 			if len(args) != 1 {
 				return nil, tengo.ErrWrongNumArguments
 			}
@@ -129,7 +133,7 @@ var randModule = map[string]tengo.Object{
 					Found:    args[0].TypeName(),
 				}
 			}
-			return tengo.Int{Value: int64(gRandRead(y1.Value))}, nil
+			return tengo.Int{Value: int64(globalRand.read(y1.Value))}, nil
 		},
 	},
 	"rand": &tengo.UserFunction{
@@ -146,136 +150,41 @@ var randModule = map[string]tengo.Object{
 					Found:    args[0].TypeName(),
 				}
 			}
-			src := rand.NewSource(i1)
-			return randRand(rand.New(src)), nil
+			return randRand(&seededRand{r: rand.New(rand.NewSource(i1))}), nil
 		},
 	},
 }
 
-func randRand(r *rand.Rand) *tengo.ImmutableMap {
-	// mu protects r since ImmutableMap values may be called concurrently.
-	var mu sync.Mutex
-
-	read := func(p []byte) int {
-		mu.Lock()
-		readBytes(r, p)
-		mu.Unlock()
-		return len(p)
-	}
-
+func randRand(sr *seededRand) *tengo.ImmutableMap {
 	return &tengo.ImmutableMap{
 		Value: map[string]tengo.Object{
 			"int": &tengo.UserFunction{
-				Name: "int",
-				Value: func(args ...tengo.Object) (tengo.Object, error) {
-					if len(args) != 0 {
-						return nil, tengo.ErrWrongNumArguments
-					}
-					mu.Lock()
-					v := r.Int63()
-					mu.Unlock()
-					return tengo.Int{Value: v}, nil
-				},
+				Name:  "int",
+				Value: FuncARI64(sr.int63),
 			},
 			"float": &tengo.UserFunction{
-				Name: "float",
-				Value: func(args ...tengo.Object) (tengo.Object, error) {
-					if len(args) != 0 {
-						return nil, tengo.ErrWrongNumArguments
-					}
-					mu.Lock()
-					v := r.Float64()
-					mu.Unlock()
-					return tengo.Float{Value: v}, nil
-				},
+				Name:  "float",
+				Value: FuncARF(sr.float64),
 			},
 			"intn": &tengo.UserFunction{
-				Name: "intn",
-				Value: func(args ...tengo.Object) (tengo.Object, error) {
-					if len(args) != 1 {
-						return nil, tengo.ErrWrongNumArguments
-					}
-					i1, ok := tengo.ToInt64(args[0])
-					if !ok {
-						return nil, tengo.ErrInvalidArgumentType{
-							Name:     "first",
-							Expected: "int(compatible)",
-							Found:    args[0].TypeName(),
-						}
-					}
-					mu.Lock()
-					v := r.Int63n(i1)
-					mu.Unlock()
-					return tengo.Int{Value: v}, nil
-				},
+				Name:  "intn",
+				Value: FuncAI64RI64(sr.int63n),
 			},
 			"exp_float": &tengo.UserFunction{
-				Name: "exp_float",
-				Value: func(args ...tengo.Object) (tengo.Object, error) {
-					if len(args) != 0 {
-						return nil, tengo.ErrWrongNumArguments
-					}
-					mu.Lock()
-					v := r.ExpFloat64()
-					mu.Unlock()
-					return tengo.Float{Value: v}, nil
-				},
+				Name:  "exp_float",
+				Value: FuncARF(sr.expFloat64),
 			},
 			"norm_float": &tengo.UserFunction{
-				Name: "norm_float",
-				Value: func(args ...tengo.Object) (tengo.Object, error) {
-					if len(args) != 0 {
-						return nil, tengo.ErrWrongNumArguments
-					}
-					mu.Lock()
-					v := r.NormFloat64()
-					mu.Unlock()
-					return tengo.Float{Value: v}, nil
-				},
+				Name:  "norm_float",
+				Value: FuncARF(sr.normFloat64),
 			},
 			"perm": &tengo.UserFunction{
-				Name: "perm",
-				Value: func(args ...tengo.Object) (tengo.Object, error) {
-					if len(args) != 1 {
-						return nil, tengo.ErrWrongNumArguments
-					}
-					i1, ok := tengo.ToInt(args[0])
-					if !ok {
-						return nil, tengo.ErrInvalidArgumentType{
-							Name:     "first",
-							Expected: "int(compatible)",
-							Found:    args[0].TypeName(),
-						}
-					}
-					mu.Lock()
-					v := r.Perm(i1)
-					mu.Unlock()
-					arr := make([]tengo.Object, len(v))
-					for i, x := range v {
-						arr[i] = tengo.Int{Value: int64(x)}
-					}
-					return &tengo.Array{Value: arr}, nil
-				},
+				Name:  "perm",
+				Value: FuncAIRIs(sr.perm),
 			},
 			"seed": &tengo.UserFunction{
-				Name: "seed",
-				Value: func(args ...tengo.Object) (tengo.Object, error) {
-					if len(args) != 1 {
-						return nil, tengo.ErrWrongNumArguments
-					}
-					i1, ok := tengo.ToInt64(args[0])
-					if !ok {
-						return nil, tengo.ErrInvalidArgumentType{
-							Name:     "first",
-							Expected: "int(compatible)",
-							Found:    args[0].TypeName(),
-						}
-					}
-					mu.Lock()
-					r = rand.New(rand.NewSource(i1))
-					mu.Unlock()
-					return tengo.UndefinedValue, nil
-				},
+				Name:  "seed",
+				Value: FuncAI64R(sr.seed),
 			},
 			"read": &tengo.UserFunction{
 				Name: "read",
@@ -291,7 +200,7 @@ func randRand(r *rand.Rand) *tengo.ImmutableMap {
 							Found:    args[0].TypeName(),
 						}
 					}
-					return tengo.Int{Value: int64(read(y1.Value))}, nil
+					return tengo.Int{Value: int64(sr.read(y1.Value))}, nil
 				},
 			},
 		},
