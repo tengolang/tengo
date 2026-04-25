@@ -49,6 +49,30 @@ fmt.println(sum("", [1, 2, 3]))  // "123"
 - Use cases: rules engine, [state machine](https://github.com/d5/go-fsm),
   data pipeline, [transpiler](https://github.com/tengolang/tengo2lua)
 
+| Runtime     | Language   | Bytecode VM | Opt-in stdlib | Coroutines | Exec limits | Standalone |
+| ----------- | ---------- | ----------- | ------------- | ---------- | ----------- | ---------- |
+| Tengo       | Tengo      | ✓           | ✓             | ✓          | ✓           | ✓          |
+| go-lua      | Lua        | ✓           | ✓             | ✗          | ✗           | ✗          |
+| GopherLua   | Lua        | ✓           | ✓             | ✓          | ~           | ✓          |
+| goja        | JavaScript | ~           | ✓             | ✗          | ~           | ✗          |
+| starlark-go | Starlark   | ~           | ✓             | ✗          | ~           | ✓          |
+| gpython     | Python     | ✓           | ✗             | ✗          | ✗           | ✓          |
+| Yaegi       | Go         | ✗           | ✗             | ✗          | ✗           | ✓          |
+| otto        | JavaScript | ✗           | ✓             | ✗          | ~           | ✗          |
+| Anko        | Go-like    | ✗           | ✗             | ✗          | ✗           | ✓          |
+
+Legend:
+✓ = solid/native support
+~ = partial or host-enforced (not strict guarantees)
+✗ = not supported
+
+Notes:
+
+* "Exec limits" marked ~ means cooperative interruption only (no hard CPU or memory guarantees).
+* None of these runtimes provide true memory sandboxing on their own.
+* "Bytecode VM" is approximate. Some runtimes compile internally but don't expose a stable bytecode layer.
+
+
 ## Benchmark
 
 | | fib(35) | score orders | word count | moving avg | filter/map | dispatch |
