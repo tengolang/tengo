@@ -1354,30 +1354,62 @@ func (v *VM) run() {
 			return
 		}
 	}
-	v.ip = ip
-	v.sp = sp
-	v.curInsts = curInsts
 }
 
 // RunCompiledFunction calls a CompiledFunction from within an InteropFunc,
 // re-entering the running VM. It must only be called during an active VM
 // execution (i.e. from inside an InteropFunc invoked by the VM).
+//
+// It is also used by VM.Call for host-side calls into a fresh VM.
 func (v *VM) RunCompiledFunction(fn *CompiledFunction, args ...Object) (Object, error) {
 	numArgs := len(args)
-	if numArgs != fn.NumParameters {
-		return nil, fmt.Errorf("wrong number of arguments: want=%d, got=%d",
-			fn.NumParameters, numArgs)
+
+	if fn.VarArgs {
+		realArgs := fn.NumParameters - 1
+		varArgs := numArgs - realArgs
+
+		if varArgs < 0 {
+			return nil, fmt.Errorf(
+				"wrong number of arguments: want>=%d, got=%d",
+				realArgs,
+				numArgs,
+			)
+		}
+
+		packed := make([]Object, varArgs)
+		copy(packed, args[realArgs:])
+
+		newArgs := make([]Object, realArgs+1)
+		copy(newArgs, args[:realArgs])
+		newArgs[realArgs] = &Array{Value: packed}
+
+		args = newArgs
+		numArgs = len(args)
 	}
+
+	if numArgs != fn.NumParameters {
+		return nil, fmt.Errorf(
+			"wrong number of arguments: want=%d, got=%d",
+			fn.NumParameters,
+			numArgs,
+		)
+	}
+
 	if v.framesIndex >= MaxFrames {
 		return nil, ErrStackOverflow
 	}
 
 	savedSP := v.sp
+	savedIP := v.ip
+	savedCurFrame := v.curFrame
+	savedCurInsts := v.curInsts
+	savedFramesIndex := v.framesIndex
 
 	// Push a placeholder that OpReturn will overwrite with the return value
 	// (mirrors the callee slot in normal OpCall).
 	v.stack[v.sp] = UndefinedValue
 	v.sp++
+
 	for _, arg := range args {
 		v.stack[v.sp] = arg
 		v.sp++
@@ -1393,11 +1425,15 @@ func (v *VM) RunCompiledFunction(fn *CompiledFunction, args ...Object) (Object, 
 	v.curFrame = &v.frames[v.framesIndex]
 	v.curFrame.fn = fn
 	v.curFrame.freeVars = fn.Free
+	v.curFrame.ip = -1
 	v.curFrame.basePointer = v.sp - numArgs
+
 	v.curInsts = fn.Instructions
 	v.ip = -1
 	v.framesIndex++
 	v.sp = v.curFrame.basePointer + fn.NumLocals
+
+	atomic.StoreInt64(&v.stopping, 0)
 
 	v.run()
 
@@ -1406,14 +1442,87 @@ func (v *VM) RunCompiledFunction(fn *CompiledFunction, args ...Object) (Object, 
 	if v.err != nil {
 		err := v.err
 		v.err = nil
+
 		v.sp = savedSP
+		v.ip = savedIP
+		v.curFrame = savedCurFrame
+		v.curInsts = savedCurInsts
+		v.framesIndex = savedFramesIndex
+
 		return nil, err
 	}
 
 	// OpReturn placed the return value at sp-1; pop the placeholder slot.
 	ret := v.stack[v.sp-1]
 	v.sp--
+
+	if ret == nil {
+		ret = UndefinedValue
+	}
+
 	return ret, nil
+}
+
+// Call invokes a callable object directly without executing the bytecode main
+// function.
+//
+// This is intended for host-side calls into already-initialized compiled
+// scripts, e.g. Compiled.Call("_process", delta).
+func (v *VM) Call(fn Object, args ...Object) (Object, error) {
+	if fn == nil || fn == UndefinedValue {
+		return UndefinedValue, fmt.Errorf("not callable: undefined")
+	}
+
+	switch callee := fn.(type) {
+	case *CompiledFunction:
+		return v.RunCompiledFunction(callee, args...)
+
+	case *InteropFunction:
+		ret, err := callee.Value(v, args...)
+		if err != nil {
+			return UndefinedValue, normalizeCallError(fn, err)
+		}
+		if ret == nil {
+			return UndefinedValue, nil
+		}
+		return ret, nil
+
+	default:
+		if !fn.CanCall() {
+			return UndefinedValue, fmt.Errorf("not callable: %s", fn.TypeName())
+		}
+
+		ret, err := fn.Call(args...)
+		if err != nil {
+			return UndefinedValue, normalizeCallError(fn, err)
+		}
+		if ret == nil {
+			return UndefinedValue, nil
+		}
+		return ret, nil
+	}
+}
+
+func normalizeCallError(fn Object, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if err == ErrWrongNumArguments {
+		return fmt.Errorf("wrong number of arguments in call to '%s'", fn.TypeName())
+	}
+
+	if e, ok := err.(ErrInvalidArgumentType); ok {
+		return fmt.Errorf(
+			"invalid type for argument '%s' in call to '%s': expected %s, found %s",
+			e.Name,
+			fn.TypeName(),
+			e.Expected,
+			e.Found,
+		)
+	}
+
+	return err
 }
 
 // IsStackEmpty tests if the stack is empty or not.

@@ -408,3 +408,160 @@ func (c *Compiled) Set(name string, value interface{}) error {
 	c.globals[idx] = obj
 	return nil
 }
+
+// Call invokes a global Tengo function by name without re-running the
+// top-level script.
+//
+// The compiled script should usually be initialized with Run() first, so that
+// top-level function declarations and global state are populated. Mutations
+// made to globals during a call (e.g. script-level variables) persist and are
+// visible to subsequent calls on the same Compiled.
+//
+// Concurrent calls to Call, Run, Set, and ReplaceBuiltinModule on the same
+// Compiled are serialized. For isolated concurrent execution, use Clone().
+func (c *Compiled) Call(name string, args ...interface{}) (*Variable, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	idx, ok := c.globalIndexes[name]
+	if !ok {
+		return nil, fmt.Errorf("'%s' is not defined", name)
+	}
+
+	fn := c.globals[idx]
+	if fn == nil || fn == UndefinedValue {
+		return nil, fmt.Errorf("'%s' is undefined", name)
+	}
+
+	objArgs := make([]Object, len(args))
+	for i, arg := range args {
+		obj, err := FromInterface(arg)
+		if err != nil {
+			return nil, err
+		}
+		objArgs[i] = obj
+	}
+
+	v := NewVM(c.bytecode, c.globals, c.maxAllocs)
+
+	ret, err := v.Call(fn, objArgs...)
+	if err != nil {
+		return nil, err
+	}
+	if ret == nil {
+		ret = UndefinedValue
+	}
+
+	return &Variable{
+		name:  name,
+		value: ret,
+	}, nil
+}
+
+// CallContext is like Call but includes a context.
+func (c *Compiled) CallContext(
+	ctx context.Context,
+	name string,
+	args ...interface{},
+) (ret *Variable, err error) {
+	if err = ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	idx, ok := c.globalIndexes[name]
+	if !ok {
+		return nil, fmt.Errorf("'%s' is not defined", name)
+	}
+
+	fn := c.globals[idx]
+	if fn == nil || fn == UndefinedValue {
+		return nil, fmt.Errorf("'%s' is undefined", name)
+	}
+
+	objArgs := make([]Object, len(args))
+	for i, arg := range args {
+		obj, err := FromInterface(arg)
+		if err != nil {
+			return nil, err
+		}
+		objArgs[i] = obj
+	}
+
+	v := NewVM(c.bytecode, c.globals, c.maxAllocs)
+
+	ch := make(chan struct {
+		value Object
+		err   error
+	}, 1)
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				switch e := r.(type) {
+				case string:
+					ch <- struct {
+						value Object
+						err   error
+					}{UndefinedValue, errors.New(e)}
+				case error:
+					ch <- struct {
+						value Object
+						err   error
+					}{UndefinedValue, e}
+				default:
+					ch <- struct {
+						value Object
+						err   error
+					}{UndefinedValue, fmt.Errorf("unknown panic: %v", e)}
+				}
+			}
+		}()
+
+		value, err := v.Call(fn, objArgs...)
+		ch <- struct {
+			value Object
+			err   error
+		}{value, err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		v.Abort()
+		<-ch
+		return nil, ctx.Err()
+
+	case result := <-ch:
+		if result.err != nil {
+			return nil, result.err
+		}
+		if result.value == nil {
+			result.value = UndefinedValue
+		}
+
+		return &Variable{
+			name:  name,
+			value: result.value,
+		}, nil
+	}
+}
+
+// CanCall returns true if name refers to a defined callable global.
+func (c *Compiled) CanCall(name string) bool {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	idx, ok := c.globalIndexes[name]
+	if !ok {
+		return false
+	}
+
+	fn := c.globals[idx]
+	if fn == nil || fn == UndefinedValue {
+		return false
+	}
+
+	return fn.CanCall()
+}
