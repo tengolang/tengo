@@ -200,6 +200,93 @@ func (v *VM) run() {
 			right := v.stack[sp-1]
 			left := v.stack[sp-2]
 			tok := token.Token(curInsts[ip])
+			// Fast path: Int op Int avoids virtual dispatch and type switches.
+			if li, ok := left.(Int); ok {
+				if ri, ok := right.(Int); ok {
+					var r int64
+					switch tok {
+					case token.Add:
+						r = li.Value + ri.Value
+					case token.Sub:
+						r = li.Value - ri.Value
+					case token.Mul:
+						r = li.Value * ri.Value
+					case token.Less:
+						v.allocs--
+						if v.allocs == 0 {
+							v.err = ErrObjectAllocLimit
+							v.ip = ip
+							v.sp = sp - 2
+							return
+						}
+						if li.Value < ri.Value {
+							v.stack[sp-2] = TrueValue
+						} else {
+							v.stack[sp-2] = FalseValue
+						}
+						sp--
+						continue
+					case token.Greater:
+						v.allocs--
+						if v.allocs == 0 {
+							v.err = ErrObjectAllocLimit
+							v.ip = ip
+							v.sp = sp - 2
+							return
+						}
+						if li.Value > ri.Value {
+							v.stack[sp-2] = TrueValue
+						} else {
+							v.stack[sp-2] = FalseValue
+						}
+						sp--
+						continue
+					case token.LessEq:
+						v.allocs--
+						if v.allocs == 0 {
+							v.err = ErrObjectAllocLimit
+							v.ip = ip
+							v.sp = sp - 2
+							return
+						}
+						if li.Value <= ri.Value {
+							v.stack[sp-2] = TrueValue
+						} else {
+							v.stack[sp-2] = FalseValue
+						}
+						sp--
+						continue
+					case token.GreaterEq:
+						v.allocs--
+						if v.allocs == 0 {
+							v.err = ErrObjectAllocLimit
+							v.ip = ip
+							v.sp = sp - 2
+							return
+						}
+						if li.Value >= ri.Value {
+							v.stack[sp-2] = TrueValue
+						} else {
+							v.stack[sp-2] = FalseValue
+						}
+						sp--
+						continue
+					default:
+						goto slowBinaryOp
+					}
+					v.allocs--
+					if v.allocs == 0 {
+						v.err = ErrObjectAllocLimit
+						v.ip = ip
+						v.sp = sp - 2
+						return
+					}
+					v.stack[sp-2] = Int{Value: r}
+					sp--
+					continue
+				}
+			}
+		slowBinaryOp:
 			res, e := left.BinaryOp(tok, right)
 			if e != nil {
 				sp -= 2
@@ -230,6 +317,17 @@ func (v *VM) run() {
 			right := v.stack[sp-1]
 			left := v.stack[sp-2]
 			sp -= 2
+			if li, lok := left.(Int); lok {
+				if ri, rok := right.(Int); rok {
+					if li.Value == ri.Value {
+						v.stack[sp] = TrueValue
+					} else {
+						v.stack[sp] = FalseValue
+					}
+					sp++
+					continue
+				}
+			}
 			if left.Equals(right) {
 				v.stack[sp] = TrueValue
 			} else {
@@ -240,6 +338,17 @@ func (v *VM) run() {
 			right := v.stack[sp-1]
 			left := v.stack[sp-2]
 			sp -= 2
+			if li, lok := left.(Int); lok {
+				if ri, rok := right.(Int); rok {
+					if li.Value != ri.Value {
+						v.stack[sp] = TrueValue
+					} else {
+						v.stack[sp] = FalseValue
+					}
+					sp++
+					continue
+				}
+			}
 			if left.Equals(right) {
 				v.stack[sp] = FalseValue
 			} else {
@@ -752,12 +861,6 @@ func (v *VM) run() {
 			ip += 2
 
 			value := v.stack[sp-1-numArgs]
-			if !value.CanCall() {
-				v.err = fmt.Errorf("not callable: %s", value.TypeName())
-				v.ip = ip
-				v.sp = sp
-				return
-			}
 
 			if spread == 1 {
 				sp--
@@ -895,6 +998,12 @@ func (v *VM) run() {
 				v.stack[sp] = ret
 				sp++
 			} else {
+				if !value.CanCall() {
+					v.err = fmt.Errorf("not callable: %s", value.TypeName())
+					v.ip = ip
+					v.sp = sp
+					return
+				}
 				var args []Object
 				args = append(args, v.stack[sp-numArgs:sp]...)
 				ret, e := value.Call(args...)
