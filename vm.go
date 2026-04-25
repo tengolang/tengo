@@ -169,11 +169,13 @@ func (v *VM) run() {
 	ip := v.ip
 	sp := v.sp
 	curInsts := v.curInsts
+	bp := v.curFrame.basePointer
+	hookMask := v.hookMask
 
-	for atomic.LoadInt64(&v.stopping) == 0 {
+	for {
 		ip++
 
-		if v.hookMask&HookMaskLine != 0 {
+		if hookMask&HookMaskLine != 0 {
 			pos := v.fileSet.Position(v.curFrame.fn.SourcePos(ip))
 			if pos.Line != v.lastLine {
 				v.lastLine = pos.Line
@@ -182,6 +184,14 @@ func (v *VM) run() {
 					Depth: v.framesIndex,
 					Pos:   pos,
 				})
+				hookMask = v.hookMask
+				if atomic.LoadInt64(&v.stopping) != 0 {
+					// ip points to the opcode of the unexecuted instruction;
+					// save ip-1 so the loop's ip++ at restart lands on the opcode.
+					v.ip = ip - 1
+					v.sp = sp
+					return
+				}
 			}
 		}
 
@@ -469,6 +479,9 @@ func (v *VM) run() {
 			}
 		case parser.OpJump:
 			pos := int(curInsts[ip+4]) | int(curInsts[ip+3])<<8 | int(curInsts[ip+2])<<16 | int(curInsts[ip+1])<<24
+			if pos <= ip && atomic.LoadInt64(&v.stopping) != 0 {
+				return
+			}
 			ip = pos - 1
 		case parser.OpSetGlobal:
 			ip += 2
@@ -924,7 +937,7 @@ func (v *VM) run() {
 						(nextOp == parser.OpPop &&
 							parser.OpReturn == curInsts[ip+2]) {
 						for p := 0; p < numArgs; p++ {
-							v.stack[v.curFrame.basePointer+p] =
+							v.stack[bp+p] =
 								v.stack[sp-numArgs+p]
 						}
 						sp -= numArgs + 1
@@ -939,23 +952,30 @@ func (v *VM) run() {
 					return
 				}
 
+				if atomic.LoadInt64(&v.stopping) != 0 {
+					v.ip = ip
+					v.sp = sp
+					return
+				}
 				// update call frame — flush ip/sp into current frame first
 				v.curFrame.ip = ip
 				v.curFrame = &(v.frames[v.framesIndex])
 				v.curFrame.fn = callee
 				v.curFrame.freeVars = callee.Free
 				v.curFrame.basePointer = sp - numArgs
+				bp = sp - numArgs
 				v.framesIndex++
 				sp = sp - numArgs + callee.NumLocals
 				// reload locals from new frame
 				ip = -1
 				curInsts = callee.Instructions
-				if v.hookMask&HookMaskCall != 0 {
+				if hookMask&HookMaskCall != 0 {
 					v.hookFunc(v, HookInfo{
 						Event: HookCall,
 						Depth: v.framesIndex,
 						Pos:   v.fileSet.Position(callee.SourcePos(0)),
 					})
+					hookMask = v.hookMask
 				}
 			} else if callee, ok := value.(*InteropFunction); ok {
 				var args []Object
@@ -997,6 +1017,11 @@ func (v *VM) run() {
 				}
 				v.stack[sp] = ret
 				sp++
+				if atomic.LoadInt64(&v.stopping) != 0 {
+					v.ip = ip
+					v.sp = sp
+					return
+				}
 			} else {
 				if !value.CanCall() {
 					v.err = fmt.Errorf("not callable: %s", value.TypeName())
@@ -1047,6 +1072,11 @@ func (v *VM) run() {
 				}
 				v.stack[sp] = ret
 				sp++
+				if atomic.LoadInt64(&v.stopping) != 0 {
+					v.ip = ip
+					v.sp = sp
+					return
+				}
 			}
 		case parser.OpReturn:
 			ip++
@@ -1064,19 +1094,21 @@ func (v *VM) run() {
 				}
 				retVal = &MultiValue{Values: vals}
 			}
-			if v.hookMask&HookMaskReturn != 0 {
+			if hookMask&HookMaskReturn != 0 {
 				v.hookFunc(v, HookInfo{
 					Event:  HookReturn,
 					Depth:  v.framesIndex,
 					Pos:    v.fileSet.Position(v.curFrame.fn.SourcePos(ip)),
 					RetVal: retVal,
 				})
+				hookMask = v.hookMask
 			}
 			v.framesIndex--
 			v.curFrame = &v.frames[v.framesIndex-1]
 			// reload locals from the returning frame
 			curInsts = v.curFrame.fn.Instructions
 			ip = v.curFrame.ip
+			bp = v.curFrame.basePointer
 			sp = v.frames[v.framesIndex].basePointer
 			// skip stack overflow check because (newSP) <= (oldSP)
 			v.stack[sp-1] = retVal
@@ -1111,7 +1143,7 @@ func (v *VM) run() {
 		case parser.OpDefineLocal:
 			ip++
 			localIndex := int(curInsts[ip])
-			lsp := v.curFrame.basePointer + localIndex
+			lsp := bp + localIndex
 
 			// local variables can be mutated by other actions
 			// so always store the copy of popped value
@@ -1126,7 +1158,7 @@ func (v *VM) run() {
 		case parser.OpSetLocal:
 			localIndex := int(curInsts[ip+1])
 			ip++
-			lsp := v.curFrame.basePointer + localIndex
+			lsp := bp + localIndex
 
 			// update pointee of v.stack[lsp] instead of replacing the pointer
 			// itself. this is needed because there can be free variables
@@ -1150,7 +1182,7 @@ func (v *VM) run() {
 			}
 			val := v.stack[sp-numSelectors-1]
 			sp -= numSelectors + 1
-			dst := v.stack[v.curFrame.basePointer+localIndex]
+			dst := v.stack[bp+localIndex]
 			if obj, ok := dst.(*ObjectPtr); ok {
 				dst = *obj.Value
 			}
@@ -1163,7 +1195,7 @@ func (v *VM) run() {
 		case parser.OpGetLocal:
 			ip++
 			localIndex := int(curInsts[ip])
-			val := v.stack[v.curFrame.basePointer+localIndex]
+			val := v.stack[bp+localIndex]
 			if obj, ok := val.(*ObjectPtr); ok {
 				val = *obj.Value
 			}
@@ -1234,7 +1266,7 @@ func (v *VM) run() {
 		case parser.OpGetLocalPtr:
 			ip++
 			localIndex := int(curInsts[ip])
-			lsp := v.curFrame.basePointer + localIndex
+			lsp := bp + localIndex
 			val := v.stack[lsp]
 			var freeVar *ObjectPtr
 			if obj, ok := val.(*ObjectPtr); ok {
