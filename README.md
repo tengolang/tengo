@@ -49,28 +49,24 @@ fmt.println(sum("", [1, 2, 3]))  // "123"
 - Use cases: rules engine, [state machine](https://github.com/d5/go-fsm),
   data pipeline, [transpiler](https://github.com/tengolang/tengo2lua)
 
-| Runtime     | Language   | Bytecode VM | Opt-in stdlib | Coroutines | Exec limits | Standalone |
-| ----------- | ---------- | ----------- | ------------- | ---------- | ----------- | ---------- |
-| Tengo       | Tengo      | ✓           | ✓             | ✓          | ✓           | ✓          |
-| go-lua      | Lua        | ✓           | ✓             | ✗          | ✗           | ✗          |
-| GopherLua   | Lua        | ✓           | ✓             | ✓          | ~           | ✓          |
-| goja        | JavaScript | ~           | ✓             | ✗          | ~           | ✗          |
-| starlark-go | Starlark   | ~           | ✓             | ✗          | ~           | ✓          |
-| gpython     | Python     | ✓           | ✗             | ✗          | ✗           | ✓          |
-| Yaegi       | Go         | ✗           | ✗             | ✗          | ✗           | ✓          |
-| otto        | JavaScript | ✗           | ✓             | ✗          | ~           | ✗          |
-| Anko        | Go-like    | ✗           | ✗             | ✗          | ✗           | ✓          |
+| | Language | Bytecode VM | Opt-in stdlib | Coroutines | Exec limits | Standalone |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **Tengo** | Tengo | ✓ | ✓ | ✓ | ✓ | ✓ |
+| go-lua | Lua | ✓ | ✓ | ✗ | ✗ | ✗ |
+| GopherLua | Lua | ✓ | ✓ | ✓ | ~ | ✓ |
+| goja | JavaScript | ~ | ✓ | ✗ | ~ | ✗ |
+| starlark-go | Starlark | ~ | ✓ | ✗ | ✓ | ✓ |
+| gpython | Python | ✓ | ✗ | ✗ | ✗ | ✓ |
+| Yaegi | Go | ✗ | ✗ | ✗ | ✗ | ✓ |
+| otto | JavaScript | ✗ | ✓ | ✗ | ~ | ✗ |
+| Anko | Go-like | ✗ | ✗ | ✗ | ✗ | ✓ |
 
-Legend:  
-✓ = solid/native support  
-~ = partial or host-enforced (not strict guarantees)  
-✗ = not supported  
+_✓ solid/native · ~ partial or host-enforced · ✗ absent_
 
-Notes:
-
-* "Exec limits" marked ~ means cooperative interruption only (no hard CPU or memory guarantees).
-* None of these runtimes provide true memory sandboxing on their own.
-* "Bytecode VM" is approximate. Some runtimes compile internally but don't expose a stable bytecode layer.
+_**Bytecode VM**: ✓ = dedicated bytecode compiler + VM; ~ = compiles to an internal form without a stable/exposed bytecode layer_  
+_**Opt-in stdlib**: scripts have no file, OS, or network access unless the host explicitly registers it_  
+_**Exec limits**: ✓ = hard deterministic cap (Tengo: `maxAllocs`; starlark-go: `SetMaxExecutionSteps`); ~ = cooperative interrupt signal only, no memory or step guarantees_  
+_**Coroutines**: cooperative yield/resume — not OS threads or goroutines_
 
 
 ## Benchmark
