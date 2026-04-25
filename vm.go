@@ -653,6 +653,50 @@ func (v *VM) run() {
 				}
 				v.stack[sp] = val
 				sp++
+			case *StringBuilder:
+				mat := left.materialize()
+				numElements := int64(len(mat.Value))
+				var highIdx int64
+				if high == UndefinedValue {
+					highIdx = numElements
+				} else if highInt, ok := high.(Int); ok {
+					highIdx = highInt.Value
+				} else {
+					v.err = fmt.Errorf("invalid slice index type: %s",
+						high.TypeName())
+					v.ip = ip
+					v.sp = sp
+					return
+				}
+				if lowIdx > highIdx {
+					v.err = fmt.Errorf("invalid slice index: %d > %d",
+						lowIdx, highIdx)
+					v.ip = ip
+					v.sp = sp
+					return
+				}
+				if lowIdx < 0 {
+					lowIdx = 0
+				} else if lowIdx > numElements {
+					lowIdx = numElements
+				}
+				if highIdx < 0 {
+					highIdx = 0
+				} else if highIdx > numElements {
+					highIdx = numElements
+				}
+				var val Object = &String{
+					Value: mat.Value[lowIdx:highIdx],
+				}
+				v.allocs--
+				if v.allocs == 0 {
+					v.err = ErrObjectAllocLimit
+					v.ip = ip
+					v.sp = sp
+					return
+				}
+				v.stack[sp] = val
+				sp++
 			case *Bytes:
 				numElements := int64(len(left.Value))
 				var highIdx int64
@@ -964,6 +1008,11 @@ func (v *VM) run() {
 			// so always store the copy of popped value
 			val := unwrapMultiValue(v.stack[sp-1])
 			sp--
+			// Snapshot *StringBuilder to *String to preserve value semantics:
+			// b := a  must give b the current value of a, not a live reference.
+			if sb, ok := val.(*StringBuilder); ok {
+				val = sb.materialize()
+			}
 			v.stack[lsp] = val
 		case parser.OpSetLocal:
 			localIndex := int(curInsts[ip+1])

@@ -64,14 +64,26 @@ func CountObjects(o Object) (c int) {
 	return
 }
 
+// StringValue returns the raw string value of o if it is a string or
+// string-builder object, without the surrounding quotes that String() adds.
+func StringValue(o Object) (string, bool) {
+	switch s := o.(type) {
+	case *String:
+		return s.Value, true
+	case *StringBuilder:
+		return s.builder.String(), true
+	}
+	return "", false
+}
+
 // ToString will try to convert object o to string value.
 func ToString(o Object) (v string, ok bool) {
 	if o == UndefinedValue {
 		return
 	}
 	ok = true
-	if str, isStr := o.(*String); isStr {
-		v = str.Value
+	if sv, isStr := StringValue(o); isStr {
+		v = sv
 	} else {
 		v = o.String()
 	}
@@ -97,6 +109,12 @@ func ToInt(o Object) (v int, ok bool) {
 		ok = true
 	case *String:
 		c, err := strconv.ParseInt(o.Value, 10, 64)
+		if err == nil {
+			v = int(c)
+			ok = true
+		}
+	case *StringBuilder:
+		c, err := strconv.ParseInt(o.builder.String(), 10, 64)
 		if err == nil {
 			v = int(c)
 			ok = true
@@ -128,6 +146,12 @@ func ToInt64(o Object) (v int64, ok bool) {
 			v = c
 			ok = true
 		}
+	case *StringBuilder:
+		c, err := strconv.ParseInt(o.builder.String(), 10, 64)
+		if err == nil {
+			v = c
+			ok = true
+		}
 	}
 	return
 }
@@ -143,6 +167,12 @@ func ToFloat64(o Object) (v float64, ok bool) {
 		ok = true
 	case *String:
 		c, err := strconv.ParseFloat(o.Value, 64)
+		if err == nil {
+			v = c
+			ok = true
+		}
+	case *StringBuilder:
+		c, err := strconv.ParseFloat(o.builder.String(), 64)
 		if err == nil {
 			v = c
 			ok = true
@@ -180,6 +210,9 @@ func ToByteSlice(o Object) (v []byte, ok bool) {
 	case *String:
 		v = []byte(o.Value)
 		ok = true
+	case *StringBuilder:
+		v = []byte(o.builder.String())
+		ok = true
 	}
 	return
 }
@@ -204,6 +237,8 @@ func ToInterface(o Object) (res interface{}) {
 		res = o.Value
 	case *String:
 		res = o.Value
+	case *StringBuilder:
+		res = o.builder.String()
 	case Float:
 		res = o.Value
 	case Bool:

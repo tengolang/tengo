@@ -183,11 +183,11 @@ func (c *Coroutine) Iterate() tengo.Iterator {
 
 // IndexGet implements tengo.Object — exposes .resume(), .close(), .status.
 func (c *Coroutine) IndexGet(index tengo.Object) (tengo.Object, error) {
-	s, ok := index.(*tengo.String)
+	sv, ok := tengo.StringValue(index)
 	if !ok {
 		return tengo.UndefinedValue, nil
 	}
-	switch s.Value {
+	switch sv {
 	case "resume":
 		return &tengo.UserFunction{
 			Name: "resume",

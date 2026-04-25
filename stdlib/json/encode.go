@@ -239,9 +239,9 @@ func Encode(o tengo.Object) ([]byte, error) {
 	case tengo.Int:
 		b = strconv.AppendInt(b, o.Value, 10)
 	case *tengo.String:
-		// string encoding bug is fixed with newly introduced function
-		// encodeString(). See: https://github.com/d5/tengo/issues/268
 		b = encodeString(b, o.Value)
+	case *tengo.StringBuilder:
+		b = encodeString(b, o.Copy().(*tengo.String).Value)
 	case *tengo.Time:
 		y, err := o.Value.MarshalJSON()
 		if err != nil {

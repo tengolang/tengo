@@ -28,7 +28,7 @@ func fmtPrintf(args ...tengo.Object) (ret tengo.Object, err error) {
 		return nil, tengo.ErrWrongNumArguments
 	}
 
-	format, ok := args[0].(*tengo.String)
+	fmtVal, ok := tengo.StringValue(args[0])
 	if !ok {
 		return nil, tengo.ErrInvalidArgumentType{
 			Name:     "format",
@@ -37,11 +37,11 @@ func fmtPrintf(args ...tengo.Object) (ret tengo.Object, err error) {
 		}
 	}
 	if numArgs == 1 {
-		fmt.Print(format)
+		fmt.Print(fmtVal)
 		return nil, nil
 	}
 
-	s, err := tengo.Format(format.Value, args[1:]...)
+	s, err := tengo.Format(fmtVal, args[1:]...)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func fmtSprintf(args ...tengo.Object) (ret tengo.Object, err error) {
 		return nil, tengo.ErrWrongNumArguments
 	}
 
-	format, ok := args[0].(*tengo.String)
+	fmtVal, ok := tengo.StringValue(args[0])
 	if !ok {
 		return nil, tengo.ErrInvalidArgumentType{
 			Name:     "format",
@@ -74,10 +74,12 @@ func fmtSprintf(args ...tengo.Object) (ret tengo.Object, err error) {
 		}
 	}
 	if numArgs == 1 {
-		// okay to return 'format' directly as String is immutable
-		return format, nil
+		if s, isSt := args[0].(*tengo.String); isSt {
+			return s, nil
+		}
+		return &tengo.String{Value: fmtVal}, nil
 	}
-	s, err := tengo.Format(format.Value, args[1:]...)
+	s, err := tengo.Format(fmtVal, args[1:]...)
 	if err != nil {
 		return nil, err
 	}

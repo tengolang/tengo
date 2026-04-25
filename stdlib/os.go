@@ -553,7 +553,7 @@ func osStartProcess(args ...tengo.Object) (tengo.Object, error) {
 func stringArray(arr []tengo.Object, argName string) ([]string, error) {
 	var sarr []string
 	for idx, elem := range arr {
-		str, ok := elem.(*tengo.String)
+		sv, ok := tengo.StringValue(elem)
 		if !ok {
 			return nil, tengo.ErrInvalidArgumentType{
 				Name:     fmt.Sprintf("%s[%d]", argName, idx),
@@ -561,7 +561,7 @@ func stringArray(arr []tengo.Object, argName string) ([]string, error) {
 				Found:    elem.TypeName(),
 			}
 		}
-		sarr = append(sarr, str.Value)
+		sarr = append(sarr, sv)
 	}
 	return sarr, nil
 }

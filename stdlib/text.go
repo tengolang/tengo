@@ -918,7 +918,7 @@ func textParseBool(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	s1, ok := args[0].(*tengo.String)
+	s1val, ok := tengo.StringValue(args[0])
 	if !ok {
 		err = tengo.ErrInvalidArgumentType{
 			Name:     "first",
@@ -928,7 +928,7 @@ func textParseBool(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	parsed, err := strconv.ParseBool(s1.Value)
+	parsed, err := strconv.ParseBool(s1val)
 	if err != nil {
 		ret = wrapError(err)
 		return
@@ -949,7 +949,7 @@ func textParseFloat(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	s1, ok := args[0].(*tengo.String)
+	s1val, ok := tengo.StringValue(args[0])
 	if !ok {
 		err = tengo.ErrInvalidArgumentType{
 			Name:     "first",
@@ -969,7 +969,7 @@ func textParseFloat(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	parsed, err := strconv.ParseFloat(s1.Value, i2)
+	parsed, err := strconv.ParseFloat(s1val, i2)
 	if err != nil {
 		ret = wrapError(err)
 		return
@@ -986,7 +986,7 @@ func textParseInt(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	s1, ok := args[0].(*tengo.String)
+	s1val, ok := tengo.StringValue(args[0])
 	if !ok {
 		err = tengo.ErrInvalidArgumentType{
 			Name:     "first",
@@ -1016,7 +1016,7 @@ func textParseInt(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	parsed, err := strconv.ParseInt(s1.Value, i2, i3)
+	parsed, err := strconv.ParseInt(s1val, i2, i3)
 	if err != nil {
 		ret = wrapError(err)
 		return

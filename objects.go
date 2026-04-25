@@ -1393,22 +1393,34 @@ func (o *String) String() string {
 
 // BinaryOp returns another object that is the result of a given binary
 // operator and a right-hand side object.
+// stringBuilderThreshold is the minimum concatenated length that triggers
+// use of StringBuilder to avoid O(n²) byte copies in accumulation loops.
+const stringBuilderThreshold = 64
+
 func (o *String) BinaryOp(op token.Token, rhs Object) (Object, error) {
 	switch op {
 	case token.Add:
-		switch rhs := rhs.(type) {
+		var rv string
+		switch r := rhs.(type) {
 		case *String:
-			if len(o.Value)+len(rhs.Value) > MaxStringLen {
-				return nil, ErrStringLimit
-			}
-			return &String{Value: o.Value + rhs.Value}, nil
+			rv = r.Value
+		case *StringBuilder:
+			rv = r.builder.String()
 		default:
-			rhsStr := rhs.String()
-			if len(o.Value)+len(rhsStr) > MaxStringLen {
-				return nil, ErrStringLimit
-			}
-			return &String{Value: o.Value + rhsStr}, nil
+			rv = rhs.String()
 		}
+		total := len(o.Value) + len(rv)
+		if total > MaxStringLen {
+			return nil, ErrStringLimit
+		}
+		if total > stringBuilderThreshold {
+			var sb StringBuilder
+			sb.builder.Grow(total * 2)
+			sb.builder.WriteString(o.Value)
+			sb.builder.WriteString(rv)
+			return &sb, nil
+		}
+		return &String{Value: o.Value + rv}, nil
 	case token.Less:
 		switch rhs := rhs.(type) {
 		case *String:
@@ -1458,11 +1470,13 @@ func (o *String) Copy() Object {
 // Equals returns true if the value of the type is equal to the value of
 // another object.
 func (o *String) Equals(x Object) bool {
-	t, ok := x.(*String)
-	if !ok {
-		return false
+	switch t := x.(type) {
+	case *String:
+		return o.Value == t.Value
+	case *StringBuilder:
+		return o.Value == t.builder.String()
 	}
-	return o.Value == t.Value
+	return false
 }
 
 // IndexGet returns a character at a given index.
@@ -1499,6 +1513,66 @@ func (o *String) Iterate() Iterator {
 func (o *String) CanIterate() bool {
 	return true
 }
+
+// StringBuilder accumulates string concatenations without O(n²) byte copies.
+// It is returned transparently by String.BinaryOp when the result exceeds
+// stringBuilderThreshold, and behaves identically to *String from the
+// script's perspective (TypeName() returns "string").
+type StringBuilder struct {
+	PtrObjectImpl
+	builder strings.Builder
+}
+
+func (o *StringBuilder) TypeName() string { return "string" }
+
+func (o *StringBuilder) String() string { return strconv.Quote(o.builder.String()) }
+
+func (o *StringBuilder) BinaryOp(op token.Token, rhs Object) (Object, error) {
+	if op != token.Add {
+		return o.materialize().BinaryOp(op, rhs)
+	}
+	var rv string
+	switch r := rhs.(type) {
+	case *String:
+		rv = r.Value
+	case *StringBuilder:
+		rv = r.builder.String()
+	default:
+		rv = rhs.String()
+	}
+	if o.builder.Len()+len(rv) > MaxStringLen {
+		return nil, ErrStringLimit
+	}
+	o.builder.WriteString(rv)
+	return o, nil
+}
+
+func (o *StringBuilder) IsFalsy() bool { return o.builder.Len() == 0 }
+
+func (o *StringBuilder) Equals(x Object) bool {
+	switch t := x.(type) {
+	case *String:
+		return o.builder.String() == t.Value
+	case *StringBuilder:
+		if o.builder.Len() != t.builder.Len() {
+			return false
+		}
+		return o.builder.String() == t.builder.String()
+	}
+	return false
+}
+
+func (o *StringBuilder) Copy() Object { return &String{Value: o.builder.String()} }
+
+func (o *StringBuilder) IndexGet(index Object) (Object, error) {
+	return o.materialize().IndexGet(index)
+}
+
+func (o *StringBuilder) Iterate() Iterator   { return o.materialize().Iterate() }
+func (o *StringBuilder) CanIterate() bool    { return true }
+func (o *StringBuilder) IndexSet(_, _ Object) error { return ErrNotIndexAssignable }
+
+func (o *StringBuilder) materialize() *String { return &String{Value: o.builder.String()} }
 
 // Time represents a time value.
 type Time struct {

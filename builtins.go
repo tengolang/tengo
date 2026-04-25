@@ -163,7 +163,8 @@ func builtinIsString(args ...Object) (Object, error) {
 	if len(args) != 1 {
 		return nil, ErrWrongNumArguments
 	}
-	if _, ok := args[0].(*String); ok {
+	switch args[0].(type) {
+	case *String, *StringBuilder:
 		return TrueValue, nil
 	}
 	return FalseValue, nil
@@ -420,7 +421,7 @@ func builtinFormat(args ...Object) (Object, error) {
 	if numArgs == 0 {
 		return nil, ErrWrongNumArguments
 	}
-	format, ok := args[0].(*String)
+	fmtVal, ok := StringValue(args[0])
 	if !ok {
 		return nil, ErrInvalidArgumentType{
 			Name:     "format",
@@ -429,10 +430,12 @@ func builtinFormat(args ...Object) (Object, error) {
 		}
 	}
 	if numArgs == 1 {
-		// okay to return 'format' directly as String is immutable
-		return format, nil
+		if s, isSt := args[0].(*String); isSt {
+			return s, nil
+		}
+		return &String{Value: fmtVal}, nil
 	}
-	s, err := Format(format.Value, args[1:]...)
+	s, err := Format(fmtVal, args[1:]...)
 	if err != nil {
 		return nil, err
 	}
@@ -451,8 +454,11 @@ func builtinString(args ...Object) (Object, error) {
 	if !(argsLen == 1 || argsLen == 2) {
 		return nil, ErrWrongNumArguments
 	}
-	if _, ok := args[0].(*String); ok {
-		return args[0], nil
+	switch s := args[0].(type) {
+	case *String:
+		return s, nil
+	case *StringBuilder:
+		return s.Copy(), nil
 	}
 	v, ok := ToString(args[0])
 	if ok {
@@ -614,8 +620,8 @@ func builtinDelete(args ...Object) (Object, error) {
 	}
 	switch arg := args[0].(type) {
 	case *Map:
-		if key, ok := args[1].(*String); ok {
-			delete(arg.Value, key.Value)
+		if keyVal, ok := StringValue(args[1]); ok {
+			delete(arg.Value, keyVal)
 			return UndefinedValue, nil
 		}
 		return nil, ErrInvalidArgumentType{

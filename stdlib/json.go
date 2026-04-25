@@ -41,15 +41,14 @@ func jsonDecode(args ...tengo.Object) (ret tengo.Object, err error) {
 			}, nil
 		}
 		return v, nil
-	case *tengo.String:
-		v, err := json.Decode([]byte(o.Value))
-		if err != nil {
-			return &tengo.Error{
-				Value: &tengo.String{Value: err.Error()},
-			}, nil
-		}
-		return v, nil
 	default:
+		if sv, ok := tengo.StringValue(args[0]); ok {
+			v, err := json.Decode([]byte(sv))
+			if err != nil {
+				return &tengo.Error{Value: &tengo.String{Value: err.Error()}}, nil
+			}
+			return v, nil
+		}
 		return nil, tengo.ErrInvalidArgumentType{
 			Name:     "first",
 			Expected: "bytes/string",
@@ -104,16 +103,14 @@ func jsonIndent(args ...tengo.Object) (ret tengo.Object, err error) {
 			}, nil
 		}
 		return &tengo.Bytes{Value: dst.Bytes()}, nil
-	case *tengo.String:
-		var dst bytes.Buffer
-		err := gojson.Indent(&dst, []byte(o.Value), prefix, indent)
-		if err != nil {
-			return &tengo.Error{
-				Value: &tengo.String{Value: err.Error()},
-			}, nil
-		}
-		return &tengo.Bytes{Value: dst.Bytes()}, nil
 	default:
+		if sv, ok := tengo.StringValue(args[0]); ok {
+			var dst bytes.Buffer
+			if err := gojson.Indent(&dst, []byte(sv), prefix, indent); err != nil {
+				return &tengo.Error{Value: &tengo.String{Value: err.Error()}}, nil
+			}
+			return &tengo.Bytes{Value: dst.Bytes()}, nil
+		}
 		return nil, tengo.ErrInvalidArgumentType{
 			Name:     "first",
 			Expected: "bytes/string",
@@ -132,11 +129,12 @@ func jsonHTMLEscape(args ...tengo.Object) (ret tengo.Object, err error) {
 		var dst bytes.Buffer
 		gojson.HTMLEscape(&dst, o.Value)
 		return &tengo.Bytes{Value: dst.Bytes()}, nil
-	case *tengo.String:
-		var dst bytes.Buffer
-		gojson.HTMLEscape(&dst, []byte(o.Value))
-		return &tengo.Bytes{Value: dst.Bytes()}, nil
 	default:
+		if sv, ok := tengo.StringValue(args[0]); ok {
+			var dst bytes.Buffer
+			gojson.HTMLEscape(&dst, []byte(sv))
+			return &tengo.Bytes{Value: dst.Bytes()}, nil
+		}
 		return nil, tengo.ErrInvalidArgumentType{
 			Name:     "first",
 			Expected: "bytes/string",
