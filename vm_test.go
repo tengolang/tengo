@@ -1928,6 +1928,32 @@ out = (func() {
 	`, nil, 2)
 }
 
+func TestNamedFunction(t *testing.T) {
+	// basic named function
+	expectRun(t, `func add(a, b) { return a + b }; out = add(3, 4)`,
+		nil, 7)
+
+	// no-arg named function
+	expectRun(t, `func greet() { return "hi" }; out = greet()`,
+		nil, "hi")
+
+	// variadic named function
+	expectRun(t, `func sum(...args) { s := 0; for x in args { s += x }; return s }; out = sum(1, 2, 3)`,
+		nil, 6)
+
+	// named function is a regular variable — can be reassigned
+	expectRun(t, `func f() { return 1 }; f = func() { return 2 }; out = f()`,
+		nil, 2)
+
+	// named function can call itself recursively
+	expectRun(t, `func fact(n) { if n <= 1 { return 1 }; return n * fact(n-1) }; out = fact(5)`,
+		nil, 120)
+
+	// anonymous func at statement level (IIFE) still works
+	expectRun(t, `out = func(x) { return x * 2 }(7)`,
+		nil, 14)
+}
+
 func TestBlocksInGlobalScope(t *testing.T) {
 	expectRun(t, `
 f := undefined

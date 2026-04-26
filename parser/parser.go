@@ -236,8 +236,10 @@ func (p *Parser) parsePrimaryExpr() Expr {
 		defer untracep(tracep(p, "PrimaryExpression"))
 	}
 
-	x := p.parseOperand()
+	return p.parsePrimaryExprSuffixes(p.parseOperand())
+}
 
+func (p *Parser) parsePrimaryExprSuffixes(x Expr) Expr {
 L:
 	for {
 		switch p.token {
@@ -561,7 +563,7 @@ func (p *Parser) parseFuncLit() Expr {
 		defer untracep(tracep(p, "FuncLit"))
 	}
 
-	typ := p.parseFuncType()
+	_, typ := p.parseFuncType()
 	p.exprLevel++
 	body := p.parseBody()
 	p.exprLevel--
@@ -569,6 +571,30 @@ func (p *Parser) parseFuncLit() Expr {
 		Type: typ,
 		Body: body,
 	}
+}
+
+func (p *Parser) parseFuncStmt() Stmt {
+	if p.trace {
+		defer untracep(tracep(p, "FuncStmt"))
+	}
+
+	name, typ := p.parseFuncType()
+	p.exprLevel++
+	body := p.parseBody()
+	p.exprLevel--
+
+	lit := &FuncLit{Type: typ, Body: body}
+
+	if name != nil {
+		return &AssignStmt{
+			LHS:      []Expr{name},
+			RHS:      []Expr{lit},
+			Token:    token.Define,
+			TokenPos: name.NamePos,
+		}
+	}
+	// Anonymous func at statement level: allow call/index/selector suffixes (e.g. IIFE).
+	return &ExprStmt{Expr: p.parsePrimaryExprSuffixes(lit)}
 }
 
 func (p *Parser) parseArrayLit() Expr {
@@ -627,14 +653,18 @@ func (p *Parser) parseImmutableExpr() Expr {
 	}
 }
 
-func (p *Parser) parseFuncType() *FuncType {
+func (p *Parser) parseFuncType() (*Ident, *FuncType) {
 	if p.trace {
 		defer untracep(tracep(p, "FuncType"))
 	}
 
 	pos := p.expect(token.Func)
+	var name *Ident
+	if p.token == token.Ident {
+		name = p.parseIdent()
+	}
 	params := p.parseIdentList()
-	return &FuncType{
+	return name, &FuncType{
 		FuncPos: pos,
 		Params:  params,
 	}
@@ -722,8 +752,12 @@ func (p *Parser) parseStmt() (stmt Stmt) {
 	}
 
 	switch p.token {
+	case token.Func:
+		s := p.parseFuncStmt()
+		p.expectSemi()
+		return s
 	case // simple statements
-		token.Func, token.Error, token.Immutable, token.Ident, token.Int,
+		token.Error, token.Immutable, token.Ident, token.Int,
 		token.Float, token.Char, token.String, token.True, token.False,
 		token.Undefined, token.Import, token.LParen, token.LBrace,
 		token.LBrack, token.Add, token.Sub, token.Mul, token.And, token.Xor,
