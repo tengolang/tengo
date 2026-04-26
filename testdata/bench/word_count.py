@@ -1,8 +1,5 @@
-text = ""
 n = 20000
-
-for i in range(n):
-    text += "lorem ipsum dolor sit amet consectetur adipiscing elit "
+text = "lorem ipsum dolor sit amet consectetur adipiscing elit " * n
 
 words = text.split(" ")
 counts = {}
