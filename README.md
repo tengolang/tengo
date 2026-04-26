@@ -32,8 +32,8 @@ fmt.println(sum(0, [1, 2, 3]))   // "6"
 fmt.println(sum("", [1, 2, 3]))  // "123"
 ```
 
-> Test this Tengo code in the
-> [Tengo Playground](https://tengolang.com/?s=0c8d5d0d88f2795a7093d7f35ae12c3afa17bea3)
+> Test Tengo code directly in the browser
+> [Tengo by Example Playground](https://tengolang.github.io/tengo-byexample/playground.html)
 
 ## Features
 
