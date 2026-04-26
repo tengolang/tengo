@@ -800,6 +800,58 @@ func TestParseVariadicFunctionWithArgs(t *testing.T) {
 	expectParseError(t, "a = func(...args, invalid) { return args }")
 }
 
+func TestParseNamedFunction(t *testing.T) {
+	// func name(params) { body } desugars to name := func(params) { body }
+	expectParse(t, "func add(a, b) { return a }", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(ident("add", p(1, 6))),
+				exprs(
+					funcLit(
+						funcType(
+							identList(p(1, 9), p(1, 14), false,
+								ident("a", p(1, 10)),
+								ident("b", p(1, 13))),
+							p(1, 1)),
+						blockStmt(p(1, 16), p(1, 27),
+							returnStmt(p(1, 18), ident("a", p(1, 25)))))),
+				token.Define,
+				p(1, 6)))
+	})
+
+	// no-arg named function
+	expectParse(t, "func greet() { }", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(ident("greet", p(1, 6))),
+				exprs(
+					funcLit(
+						funcType(
+							identList(p(1, 11), p(1, 12), false),
+							p(1, 1)),
+						blockStmt(p(1, 14), p(1, 16)))),
+				token.Define,
+				p(1, 6)))
+	})
+
+	// variadic named function
+	expectParse(t, "func sum(...args) { return args }", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(ident("sum", p(1, 6))),
+				exprs(
+					funcLit(
+						funcType(
+							identList(p(1, 9), p(1, 17), true,
+								ident("args", p(1, 13))),
+							p(1, 1)),
+						blockStmt(p(1, 19), p(1, 33),
+							returnStmt(p(1, 21), ident("args", p(1, 28)))))),
+				token.Define,
+				p(1, 6)))
+	})
+}
+
 func TestParseIf(t *testing.T) {
 	expectParse(t, "if a == 5 {}", func(p pfn) []Stmt {
 		return stmts(
