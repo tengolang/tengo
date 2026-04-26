@@ -1,8 +1,10 @@
 # The Tengo Language
 
-[![GoDoc](https://godoc.org/github.com/tengolang/tengo/v3?status.svg)](https://godoc.org/github.com/tengolang/tengo/v3)
 ![test](https://github.com/tengolang/tengo/workflows/test/badge.svg)
+[![GitHub release](https://img.shields.io/github/release/tengolang/tengo.svg)](https://github.com/tengolang/tengo/releases)
+[![Go Reference](https://pkg.go.dev/badge/github.com/tengolang/tengo/v3.svg)](https://pkg.go.dev/github.com/tengolang/tengo/v3)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tengolang/tengo)](https://goreportcard.com/report/github.com/tengolang/tengo)
+[![License](https://img.shields.io/github/license/tengolang/tengo)](LICENSE)
 
 **Tengo is a small, dynamic, fast, secure script language for Go.**
 
