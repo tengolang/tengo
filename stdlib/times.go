@@ -22,6 +22,9 @@ var timesModule = map[string]tengo.Object{
 	"format_stamp_milli":  &tengo.String{Value: time.StampMilli},
 	"format_stamp_micro":  &tengo.String{Value: time.StampMicro},
 	"format_stamp_nano":   &tengo.String{Value: time.StampNano},
+	"format_datetime":     &tengo.String{Value: time.DateTime},
+	"format_date_only":    &tengo.String{Value: time.DateOnly},
+	"format_time_only":    &tengo.String{Value: time.TimeOnly},
 	"nanosecond":          tengo.Int{Value: int64(time.Nanosecond)},
 	"microsecond":         tengo.Int{Value: int64(time.Microsecond)},
 	"millisecond":         tengo.Int{Value: int64(time.Millisecond)},
@@ -184,6 +187,30 @@ var timesModule = map[string]tengo.Object{
 		Name:  "in_location",
 		Value: timesInLocation,
 	}, // in_location(time, location) => time
+	"parse_in_location": &tengo.UserFunction{
+		Name:  "parse_in_location",
+		Value: timesParseInLocation,
+	}, // parse_in_location(format, s, location) => time
+	"unix_milli": &tengo.UserFunction{
+		Name:  "unix_milli",
+		Value: timesUnixMilli,
+	}, // unix_milli(ms) => time
+	"time_unix_milli": &tengo.UserFunction{
+		Name:  "time_unix_milli",
+		Value: timesTimeUnixMilli,
+	}, // time_unix_milli(time) => int
+	"truncate": &tengo.UserFunction{
+		Name:  "truncate",
+		Value: timesTruncate,
+	}, // truncate(time, duration) => time
+	"round": &tengo.UserFunction{
+		Name:  "round",
+		Value: timesRound,
+	}, // round(time, duration) => time
+	"time_equal": &tengo.UserFunction{
+		Name:  "time_equal",
+		Value: timesTimeEqual,
+	}, // time_equal(t, u) => bool
 }
 
 func timesSleep(args ...tengo.Object) (ret tengo.Object, err error) {
@@ -779,7 +806,7 @@ func timesBefore(args ...tengo.Object) (ret tengo.Object, err error) {
 		err = tengo.ErrInvalidArgumentType{
 			Name:     "second",
 			Expected: "time(compatible)",
-			Found:    args[0].TypeName(),
+			Found:    args[1].TypeName(),
 		}
 		return
 	}
@@ -1173,6 +1200,198 @@ func timesInLocation(args ...tengo.Object) (
 	}
 
 	ret = &tengo.Time{Value: t1.In(location)}
+
+	return
+}
+
+func timesParseInLocation(args ...tengo.Object) (ret tengo.Object, err error) {
+	if len(args) != 3 {
+		err = tengo.ErrWrongNumArguments
+		return
+	}
+
+	s1, ok := tengo.ToString(args[0])
+	if !ok {
+		err = tengo.ErrInvalidArgumentType{
+			Name:     "first",
+			Expected: "string(compatible)",
+			Found:    args[0].TypeName(),
+		}
+		return
+	}
+
+	s2, ok := tengo.ToString(args[1])
+	if !ok {
+		err = tengo.ErrInvalidArgumentType{
+			Name:     "second",
+			Expected: "string(compatible)",
+			Found:    args[1].TypeName(),
+		}
+		return
+	}
+
+	s3, ok := tengo.ToString(args[2])
+	if !ok {
+		err = tengo.ErrInvalidArgumentType{
+			Name:     "third",
+			Expected: "string(compatible)",
+			Found:    args[2].TypeName(),
+		}
+		return
+	}
+
+	loc, err := time.LoadLocation(s3)
+	if err != nil {
+		ret = wrapError(err)
+		return
+	}
+
+	parsed, err := time.ParseInLocation(s1, s2, loc)
+	if err != nil {
+		ret = wrapError(err)
+		return
+	}
+
+	ret = &tengo.Time{Value: parsed}
+
+	return
+}
+
+func timesUnixMilli(args ...tengo.Object) (ret tengo.Object, err error) {
+	if len(args) != 1 {
+		err = tengo.ErrWrongNumArguments
+		return
+	}
+
+	i1, ok := tengo.ToInt64(args[0])
+	if !ok {
+		err = tengo.ErrInvalidArgumentType{
+			Name:     "first",
+			Expected: "int(compatible)",
+			Found:    args[0].TypeName(),
+		}
+		return
+	}
+
+	ret = &tengo.Time{Value: time.UnixMilli(i1)}
+
+	return
+}
+
+func timesTimeUnixMilli(args ...tengo.Object) (ret tengo.Object, err error) {
+	if len(args) != 1 {
+		err = tengo.ErrWrongNumArguments
+		return
+	}
+
+	t1, ok := tengo.ToTime(args[0])
+	if !ok {
+		err = tengo.ErrInvalidArgumentType{
+			Name:     "first",
+			Expected: "time(compatible)",
+			Found:    args[0].TypeName(),
+		}
+		return
+	}
+
+	ret = tengo.Int{Value: t1.UnixMilli()}
+
+	return
+}
+
+func timesTruncate(args ...tengo.Object) (ret tengo.Object, err error) {
+	if len(args) != 2 {
+		err = tengo.ErrWrongNumArguments
+		return
+	}
+
+	t1, ok := tengo.ToTime(args[0])
+	if !ok {
+		err = tengo.ErrInvalidArgumentType{
+			Name:     "first",
+			Expected: "time(compatible)",
+			Found:    args[0].TypeName(),
+		}
+		return
+	}
+
+	i2, ok := tengo.ToInt64(args[1])
+	if !ok {
+		err = tengo.ErrInvalidArgumentType{
+			Name:     "second",
+			Expected: "int(compatible)",
+			Found:    args[1].TypeName(),
+		}
+		return
+	}
+
+	ret = &tengo.Time{Value: t1.Truncate(time.Duration(i2))}
+
+	return
+}
+
+func timesRound(args ...tengo.Object) (ret tengo.Object, err error) {
+	if len(args) != 2 {
+		err = tengo.ErrWrongNumArguments
+		return
+	}
+
+	t1, ok := tengo.ToTime(args[0])
+	if !ok {
+		err = tengo.ErrInvalidArgumentType{
+			Name:     "first",
+			Expected: "time(compatible)",
+			Found:    args[0].TypeName(),
+		}
+		return
+	}
+
+	i2, ok := tengo.ToInt64(args[1])
+	if !ok {
+		err = tengo.ErrInvalidArgumentType{
+			Name:     "second",
+			Expected: "int(compatible)",
+			Found:    args[1].TypeName(),
+		}
+		return
+	}
+
+	ret = &tengo.Time{Value: t1.Round(time.Duration(i2))}
+
+	return
+}
+
+func timesTimeEqual(args ...tengo.Object) (ret tengo.Object, err error) {
+	if len(args) != 2 {
+		err = tengo.ErrWrongNumArguments
+		return
+	}
+
+	t1, ok := tengo.ToTime(args[0])
+	if !ok {
+		err = tengo.ErrInvalidArgumentType{
+			Name:     "first",
+			Expected: "time(compatible)",
+			Found:    args[0].TypeName(),
+		}
+		return
+	}
+
+	t2, ok := tengo.ToTime(args[1])
+	if !ok {
+		err = tengo.ErrInvalidArgumentType{
+			Name:     "second",
+			Expected: "time(compatible)",
+			Found:    args[1].TypeName(),
+		}
+		return
+	}
+
+	if t1.Equal(t2) {
+		ret = tengo.TrueValue
+	} else {
+		ret = tengo.FalseValue
+	}
 
 	return
 }

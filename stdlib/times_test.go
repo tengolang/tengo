@@ -86,4 +86,33 @@ func TestTimes(t *testing.T) {
 		expect(time1.Location().String())
 	module(t, "times").call("time_string", time1).expect(time1.String())
 	module(t, "times").call("in_location", time1, location.String()).expect(time1.In(location))
+
+	// parse_in_location
+	stockholm, _ := time.LoadLocation("Europe/Stockholm")
+	parsedInLoc, _ := time.ParseInLocation("2006-01-02 15:04:05", "2026-04-26 10:15:00", stockholm)
+	module(t, "times").
+		call("parse_in_location", "2006-01-02 15:04:05", "2026-04-26 10:15:00", "Europe/Stockholm").
+		expect(parsedInLoc)
+	// bad location returns error
+	module(t, "times").
+		call("parse_in_location", "2006-01-02", "2026-04-26", "Not/AZone").
+		expectError()
+
+	// unix_milli / time_unix_milli
+	ms := int64(1745661600000)
+	module(t, "times").call("unix_milli", ms).expect(time.UnixMilli(ms))
+	module(t, "times").call("time_unix_milli", time.UnixMilli(ms)).expect(ms)
+
+	// truncate / round
+	base := time.Date(2026, 4, 26, 10, 17, 33, 0, time.UTC)
+	module(t, "times").call("truncate", base, int64(time.Hour)).
+		expect(base.Truncate(time.Hour))
+	module(t, "times").call("round", base, int64(time.Hour)).
+		expect(base.Round(time.Hour))
+
+	// time_equal
+	utcTime := time.Date(2026, 4, 26, 8, 0, 0, 0, time.UTC)
+	cestTime := time.Date(2026, 4, 26, 10, 0, 0, 0, stockholm) // same instant
+	module(t, "times").call("time_equal", utcTime, cestTime).expect(true)
+	module(t, "times").call("time_equal", utcTime, utcTime.Add(time.Second)).expect(false)
 }

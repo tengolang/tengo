@@ -21,6 +21,9 @@ times := import("times")
 - `format_stamp_milli`: time format "Jan _2 15:04:05.000"
 - `format_stamp_micro`: time format "Jan _2 15:04:05.000000"
 - `format_stamp_nano`: time format "Jan _2 15:04:05.000000000"
+- `format_datetime`: time format "2006-01-02 15:04:05"
+- `format_date_only`: time format "2006-01-02"
+- `format_time_only`: time format "15:04:05"
 - `nanosecond`
 - `microsecond`
 - `millisecond`
@@ -120,5 +123,20 @@ times := import("times")
 - `in_location(t time, l string) => time`:  returns a copy of t representing
   the same time instant, but with the copy's location information set to l for 
   display purposes.
+- `parse_in_location(format string, s string, location string) => time`: like
+  `parse`, but uses the given location as the assumed timezone when the format
+  string does not include timezone information. Returns an error if the location
+  name is invalid or the string does not match the format.
 - `to_local(t time) => time`: returns t with the location set to local time.
 - `to_utc(t time) => time`: returns t with the location set to UTC.
+- `unix_milli(ms int) => time`: returns the local time corresponding to the
+  given Unix time in milliseconds since January 1, 1970 UTC.
+- `time_unix_milli(t time) => int`: returns t as a Unix time in milliseconds
+  elapsed since January 1, 1970 UTC.
+- `truncate(t time, duration int) => time`: returns the result of rounding t
+  down to a multiple of duration since the zero time.
+- `round(t time, duration int) => time`: returns the result of rounding t to
+  the nearest multiple of duration since the zero time.
+- `time_equal(t time, u time) => bool`: reports whether t and u represent the
+  same time instant. Two times can be equal even if they are in different
+  locations; for example, 6:00 +0200 and 4:00 UTC are equal.
