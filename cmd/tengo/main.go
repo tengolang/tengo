@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/tengolang/tengo/v3"
+	"github.com/tengolang/tengo/v3/format"
 	"github.com/tengolang/tengo/v3/internal/buildinfo"
 	"github.com/tengolang/tengo/v3/parser"
 	"github.com/tengolang/tengo/v3/stdlib"
@@ -67,6 +68,10 @@ func main() {
 	inputFile := flag.Arg(0)
 	if inputFile == "man" {
 		doMan(flag.Args()[1:])
+		return
+	}
+	if inputFile == "fmt" {
+		doFmt(flag.Args()[1:])
 		return
 	}
 	if inputFile == "" {
@@ -271,6 +276,43 @@ func compileSrc(
 	return bytecode, nil
 }
 
+func doFmt(args []string) {
+	if len(args) == 0 {
+		src, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		out, err := format.Format(src)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Stdout.Write(out)
+		return
+	}
+	exitCode := 0
+	for _, path := range args {
+		src, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", path, err)
+			exitCode = 1
+			continue
+		}
+		out, err := format.Format(src)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", path, err)
+			exitCode = 1
+			continue
+		}
+		if err := os.WriteFile(path, out, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", path, err)
+			exitCode = 1
+		}
+	}
+	os.Exit(exitCode)
+}
+
 func doMan(args []string) {
 	path, err := exec.LookPath("tengo-man")
 	if err != nil {
@@ -319,6 +361,11 @@ func doHelp() {
 	fmt.Println("	tengo myapp")
 	fmt.Println()
 	fmt.Println("	          Run bytecode file (myapp)")
+	fmt.Println()
+	fmt.Println("	tengo fmt [file ...]")
+	fmt.Println()
+	fmt.Println("	          Format source files in place.")
+	fmt.Println("	          With no files, reads stdin and writes to stdout.")
 	fmt.Println()
 	fmt.Println("	tengo man [topic]")
 	fmt.Println()
