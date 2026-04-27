@@ -4,6 +4,7 @@ package tengo
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"plugin"
 	"sync"
@@ -48,9 +49,14 @@ func (l *PluginLoader) Load(name string) (Importable, error) {
 	}
 	for _, dir := range l.dirs {
 		path := filepath.Join(dir, name+".so")
+		if _, err := os.Stat(path); err != nil {
+			continue // file not present in this dir
+		}
 		p, err := plugin.Open(path)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("plugin %s: failed to load: %w\n"+
+				"hint: rebuild the plugin with the same Go toolchain and "+
+				"tengo version as this binary", path, err)
 		}
 		sym, err := p.Lookup("TengoModule")
 		if err != nil {
