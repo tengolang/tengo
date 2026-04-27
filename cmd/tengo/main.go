@@ -38,6 +38,7 @@ const (
 
 var (
 	compileOutput string
+	evalCode      string
 	showHelp      bool
 	showVersion   bool
 	resolvePath   bool // TODO Remove this flag at version 3
@@ -46,6 +47,7 @@ var (
 func init() {
 	flag.BoolVar(&showHelp, "help", false, "Show help")
 	flag.StringVar(&compileOutput, "o", "", "Compile output file")
+	flag.StringVar(&evalCode, "e", "", "Evaluate code string")
 	flag.BoolVar(&showVersion, "version", false, "Show version")
 	flag.BoolVar(&resolvePath, "resolve", false,
 		"Resolve relative import paths")
@@ -65,6 +67,15 @@ func main() {
 	searchDirs := moduleSearchDirs()
 	modules.AddLoader(tengo.NewPathLoader(searchDirs...))
 	modules.AddLoader(tengo.NewPluginLoader(searchDirs...))
+
+	if evalCode != "" {
+		if err := CompileAndRun(modules, []byte(evalCode), "<cmdline>"); err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		return
+	}
+
 	inputFile := flag.Arg(0)
 	if inputFile == "man" {
 		doMan(flag.Args()[1:])
@@ -340,6 +351,7 @@ func doHelp() {
 	fmt.Println()
 	fmt.Println("Flags:")
 	fmt.Println()
+	fmt.Println("	-e code   evaluate code string")
 	fmt.Println("	-o        compile output file")
 	fmt.Println("	-version  show version")
 	fmt.Println()
@@ -348,6 +360,10 @@ func doHelp() {
 	fmt.Println("	tengo")
 	fmt.Println()
 	fmt.Println("	          Start Tengo REPL")
+	fmt.Println()
+	fmt.Println(`	tengo -e 'fmt := import("fmt"); fmt.println("hello")'`)
+	fmt.Println()
+	fmt.Println("	          Evaluate a code string")
 	fmt.Println()
 	fmt.Println("	tengo myapp.tengo")
 	fmt.Println()
