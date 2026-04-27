@@ -29,24 +29,29 @@ os := import("os")
 out := ""
 
 write_file := func(filename, data) {
-	file := os.create(filename)
-	if !file { return file }
+	file, err := os.create(filename)
+	if is_error(err) { return err }
 
-	if res := file.write(bytes(data)); is_error(res) {
-		return res
+	_, err = file.write(bytes(data))
+	if is_error(err) {
+		file.close()
+		return err
 	}
 
-	return file.close()
+	_, err = file.close()
+	return !is_error(err)
 }
 
 read_file := func(filename) {
-	file := os.open(filename)
-	if !file { return file }
+	file, err := os.open(filename)
+	if is_error(err) { return err }
 
 	data := bytes(100)
-	cnt := file.read(data)
-	if  is_error(cnt) {
-		return cnt
+	cnt := 0
+	cnt, err = file.read(data)
+	if is_error(err) {
+		file.close()
+		return err
 	}
 
 	file.close()
@@ -153,7 +158,15 @@ func (c callres) expect(expected interface{}, msgAndArgs ...interface{}) {
 }
 
 func (c callres) expectError() {
-	require.Error(c.t, c.e)
+	if c.e != nil {
+		return // Go-level error
+	}
+	if mv, ok := c.o.(*tengo.MultiValue); ok && len(mv.Values) > 1 {
+		if _, isErr := mv.Values[1].(*tengo.Error); isErr {
+			return // dual-return Tengo error
+		}
+	}
+	c.t.Fatalf("expected an error, got: %v (%T)", c.o, c.o)
 }
 
 func (c callres) noError(msgAndArgs ...interface{}) {

@@ -6,20 +6,19 @@ text := import("text")
 
 ## Functions
 
-- `re_match(pattern string, text string) => bool/error`: reports whether the
+- `re_match(pattern string, text string) => (bool, error)`: reports whether the
   string s contains any match of the regular expression pattern.
 - `re_find(pattern string, text string, count int) => [[{text: string, begin: int, end: int}]]/undefined`:
   returns an array holding all matches, each of which is an array of map object
   that contains matching text, begin and end (exclusive) index.
-- `re_replace(pattern string, text string, repl string) => string/error`:
+- `re_replace(pattern string, text string, repl string) => (string, error)`:
   returns a copy of src, replacing matches of the pattern with the replacement
   string repl.
-- `re_split(pattern string, text string, count int) => [string]/error`: slices
+- `re_split(pattern string, text string, count int) => ([string], error)`: slices
   s into substrings separated by the expression and returns a slice of the
   substrings between those expression matches.
-- `re_compile(pattern string) => Regexp/error`: parses a regular expression and
-  returns, if successful, a Regexp object that can be used to match against
-  text.
+- `re_compile(pattern string) => (Regexp, error)`: parses a regular expression
+  and returns a Regexp object that can be used to match against text.
 - `compare(a string, b string) => int`: returns an integer comparing two
   strings lexicographically. The result will be 0 if a==b, -1 if a < b, and +1
   if a > b.
@@ -97,7 +96,7 @@ text := import("text")
   leading and trailing white space removed, as defined by Unicode.
 - `trim_suffix(s string, suffix string) => string`: returns s without the
   provided trailing suffix string.
-- `atoi(str string) => int/error`: returns the result of ParseInt(s, 10, 0)
+- `atoi(str string) => (int, error)`: returns the result of ParseInt(s, 10, 0)
   converted to type int.
 - `sprintf(format string, args...) => string`: formats according to a format
   specifier and returns the resulting string. Equivalent to `fmt.sprintf` but
@@ -111,23 +110,23 @@ text := import("text")
   i in the given base, for 2 <= base <= 36. The result uses the lower-case
   letters 'a' to 'z' for digit values >= 10.
 - `itoa(i int) => string`: is shorthand for format_int(i, 10).
-- `parse_bool(s string) => bool/error`: returns the boolean value represented
+- `parse_bool(s string) => (bool, error)`: returns the boolean value represented
   by the string. It accepts 1, t, T, TRUE, true, True, 0, f, F, FALSE, false,
   False. Any other value returns an error.
-- `parse_float(s string, bits int) => float/error`: converts the string s to a
-  floating-point number with the precision specified by bitSize: 32 for float32,
-  or 64 for float64. When bitSize=32, the result still has type float64, but it
-  will be convertible to float32 without changing its value.
-- `parse_int(s string, base int, bits int) => int/error`: interprets a string s
-  in the given base (0, 2 to 36) and bit size (0 to 64) and returns the
+- `parse_float(s string, bits int) => (float, error)`: converts the string s to
+  a floating-point number with the precision specified by bitSize: 32 for
+  float32, or 64 for float64. When bitSize=32, the result still has type float64,
+  but it will be convertible to float32 without changing its value.
+- `parse_int(s string, base int, bits int) => (int, error)`: interprets a string
+  s in the given base (0, 2 to 36) and bit size (0 to 64) and returns the
   corresponding value i.
 - `quote(s string) => string`: returns a double-quoted Go string literal
   representing s. The returned string uses Go escape sequences (\t, \n, \xFF,
   \u0100) for control characters and non-printable characters as defined by
   IsPrint.
-- `unquote(s string) => string/error`: interprets s as a single-quoted,
+- `unquote(s string) => (string, error)`: interprets s as a single-quoted,
   double-quoted, or backquoted Go string literal, returning the string value
-  that s quotes.  (If s is single-quoted, it would be a Go character literal;
+  that s quotes. (If s is single-quoted, it would be a Go character literal;
   Unquote returns the corresponding one-character string.)
 
 ## Regexp

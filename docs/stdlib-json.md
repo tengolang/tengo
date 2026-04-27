@@ -6,14 +6,14 @@ json := import("json")
 
 ## Functions
 
-- `decode(b string/bytes) => object`: Parses the JSON string and returns an
-  object.
-- `encode(o object) => bytes`: Returns the JSON string (bytes) of the object.
-  Unlike Go's JSON package, this function does not HTML-escape texts, but, one
-  can use `html_escape` function if needed.
-- `indent(b string/bytes, prefix string, indent string) => bytes`: Returns an indented form of input JSON
-  bytes string.
-- `html_escape(b string/bytes) => bytes`: Return an HTML-safe form of input
+- `decode(b string/bytes) => (object, error)`: parses the JSON string and
+  returns an object.
+- `encode(o object) => (bytes, error)`: returns the JSON string (bytes) of the
+  object. Unlike Go's JSON package, this function does not HTML-escape texts;
+  use `html_escape` if needed.
+- `indent(b string/bytes, prefix string, indent string) => (bytes, error)`:
+  returns an indented form of input JSON bytes string.
+- `html_escape(b string/bytes) => bytes`: returns an HTML-safe form of input
   JSON bytes string.
 
 ## Examples
@@ -21,9 +21,12 @@ json := import("json")
 ```golang
 json := import("json")
 
-encoded := json.encode({a: 1, b: [2, 3, 4]})  // JSON-encoded bytes string
-indentded := json.indent(encoded, "", "  ")   // indented form
-html_safe := json.html_escape(encoded)        // HTML escaped form
+encoded, err := json.encode({a: 1, b: [2, 3, 4]})
+if is_error(err) { /* handle */ }
 
-decoded := json.decode(encoded)               // {a: 1, b: [2, 3, 4]}
+indented, _ := json.indent(encoded, "", "  ")
+html_safe := json.html_escape(encoded)
+
+decoded, err := json.decode(encoded)   // {a: 1, b: [2, 3, 4]}
+if is_error(err) { /* handle */ }
 ```

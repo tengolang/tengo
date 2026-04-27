@@ -172,6 +172,15 @@ func Equal(
 		}
 	case *tengo.Error:
 		Equal(t, expected.Value, actual.(*tengo.Error).Value, msg...)
+	case *tengo.MultiValue:
+		av := actual.(*tengo.MultiValue)
+		if len(expected.Values) != len(av.Values) {
+			failExpectedActual(t, expected, actual, msg...)
+			return
+		}
+		for i := range expected.Values {
+			Equal(t, expected.Values[i], av.Values[i], msg...)
+		}
 	case tengo.Object:
 		if !expected.Equals(actual.(tengo.Object)) {
 			failExpectedActual(t, expected, actual, msg...)

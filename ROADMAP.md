@@ -63,10 +63,12 @@
   `maxAllocs` counts VM object allocations, not bytes. Real byte-level limits would require
   hooking into the GC or a custom allocator. Not straightforward in Go.
 
-- **#16 Error handling**
-  d5 was right that try/catch adds overhead and Go-style error values are preferred. The
-  existing `error` type + `is_error()` pattern works but is verbose. A `try(fn)` builtin
-  that recovers panics may be the smallest useful addition. Related: d5/tengo #161.
+- **#16 Error handling** — calling convention done
+  All stdlib functions that can fail now return `(value, error)` pairs. The old
+  single-return `result := fn(); is_error(result)` pattern is gone; callers use
+  `val, err := fn(); if is_error(err) { ... }`. Next: `must(v)` builtin to
+  propagate errors without an explicit check, and `try(fn)` for protected calls
+  that catch runtime panics. Related: d5/tengo #161.
 
 - **#12 True goroutine concurrency**
   d5 rejected a PR due to ~10% overhead on the normal (non-concurrent) path from locking.

@@ -36,16 +36,14 @@ func jsonDecode(args ...tengo.Object) (ret tengo.Object, err error) {
 	case *tengo.Bytes:
 		v, err := json.Decode(o.Value)
 		if err != nil {
-			return &tengo.Error{
-				Value: &tengo.String{Value: err.Error()},
-			}, nil
+			return wrapError(err), nil
 		}
 		return v, nil
 	default:
 		if sv, ok := tengo.StringValue(args[0]); ok {
 			v, err := json.Decode([]byte(sv))
 			if err != nil {
-				return &tengo.Error{Value: &tengo.String{Value: err.Error()}}, nil
+				return wrapError(err), nil
 			}
 			return v, nil
 		}
@@ -64,7 +62,7 @@ func jsonEncode(args ...tengo.Object) (ret tengo.Object, err error) {
 
 	b, err := json.Encode(args[0])
 	if err != nil {
-		return &tengo.Error{Value: &tengo.String{Value: err.Error()}}, nil
+		return wrapError(err), nil
 	}
 
 	return &tengo.Bytes{Value: b}, nil
@@ -98,16 +96,14 @@ func jsonIndent(args ...tengo.Object) (ret tengo.Object, err error) {
 		var dst bytes.Buffer
 		err := gojson.Indent(&dst, o.Value, prefix, indent)
 		if err != nil {
-			return &tengo.Error{
-				Value: &tengo.String{Value: err.Error()},
-			}, nil
+			return wrapError(err), nil
 		}
 		return &tengo.Bytes{Value: dst.Bytes()}, nil
 	default:
 		if sv, ok := tengo.StringValue(args[0]); ok {
 			var dst bytes.Buffer
 			if err := gojson.Indent(&dst, []byte(sv), prefix, indent); err != nil {
-				return &tengo.Error{Value: &tengo.String{Value: err.Error()}}, nil
+				return wrapError(err), nil
 			}
 			return &tengo.Bytes{Value: dst.Bytes()}, nil
 		}
