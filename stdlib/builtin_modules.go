@@ -16,4 +16,5 @@ var BuiltinModules = map[string]map[string]tengo.Object{
 	"base64": base64Module,
 	"hex":    hexModule,
 	"coro":   coroutineModule,
+	"sort":   sortModule,
 }

@@ -980,6 +980,11 @@ func (v *VM) run() {
 			} else if callee, ok := value.(*InteropFunction); ok {
 				var args []Object
 				args = append(args, v.stack[sp-numArgs:sp]...)
+				// Sync hoisted locals back so RunCompiledFunction sees the
+				// correct stack pointer and instruction position if the
+				// InteropFunction calls back into the VM.
+				v.sp = sp
+				v.ip = ip
 				ret, e := callee.Value(v, args...)
 				sp -= numArgs + 1
 				if e != nil {
