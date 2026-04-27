@@ -164,6 +164,10 @@ var textModule = map[string]tengo.Object{
 		Name:  "atoi",
 		Value: FuncASRIE(strconv.Atoi),
 	}, // atoi(str) => int/error
+	"sprintf": &tengo.UserFunction{
+		Name:  "sprintf",
+		Value: textSprintf,
+	}, // sprintf(format, ...args) => string
 	"format_bool": &tengo.UserFunction{
 		Name:  "format_bool",
 		Value: textFormatBool,
@@ -1087,4 +1091,26 @@ func toTitle(s string) string {
 		prev = r
 		return r
 	}, s)
+}
+
+func textSprintf(args ...tengo.Object) (tengo.Object, error) {
+	if len(args) == 0 {
+		return nil, tengo.ErrWrongNumArguments
+	}
+	fmtVal, ok := tengo.StringValue(args[0])
+	if !ok {
+		return nil, tengo.ErrInvalidArgumentType{
+			Name:     "format",
+			Expected: "string",
+			Found:    args[0].TypeName(),
+		}
+	}
+	if len(args) == 1 {
+		return &tengo.String{Value: fmtVal}, nil
+	}
+	s, err := tengo.Format(fmtVal, args[1:]...)
+	if err != nil {
+		return nil, err
+	}
+	return &tengo.String{Value: s}, nil
 }
