@@ -8,6 +8,10 @@ import (
 	"github.com/tengolang/tengo/v3/require"
 )
 
+func TestOSSleep(t *testing.T) {
+	module(t, "os").call("sleep", 1).expect(tengo.UndefinedValue)
+}
+
 func TestReadFile(t *testing.T) {
 	content := []byte("the quick brown fox jumps over the lazy dog")
 	tf, err := os.CreateTemp("", "test")

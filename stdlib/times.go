@@ -43,10 +43,6 @@ var timesModule = map[string]tengo.Object{
 	"october":             tengo.Int{Value: int64(time.October)},
 	"november":            tengo.Int{Value: int64(time.November)},
 	"december":            tengo.Int{Value: int64(time.December)},
-	"sleep": &tengo.UserFunction{
-		Name:  "sleep",
-		Value: timesSleep,
-	}, // sleep(int)
 	"parse_duration": &tengo.UserFunction{
 		Name:  "parse_duration",
 		Value: timesParseDuration,
@@ -211,28 +207,6 @@ var timesModule = map[string]tengo.Object{
 		Name:  "time_equal",
 		Value: timesTimeEqual,
 	}, // time_equal(t, u) => bool
-}
-
-func timesSleep(args ...tengo.Object) (ret tengo.Object, err error) {
-	if len(args) != 1 {
-		err = tengo.ErrWrongNumArguments
-		return
-	}
-
-	i1, ok := tengo.ToInt64(args[0])
-	if !ok {
-		err = tengo.ErrInvalidArgumentType{
-			Name:     "first",
-			Expected: "int(compatible)",
-			Found:    args[0].TypeName(),
-		}
-		return
-	}
-
-	time.Sleep(time.Duration(i1))
-	ret = tengo.UndefinedValue
-
-	return
 }
 
 func timesParseDuration(args ...tengo.Object) (

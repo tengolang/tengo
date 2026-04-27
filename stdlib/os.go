@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"time"
 
 	"github.com/tengolang/tengo/v3"
 )
@@ -69,6 +70,20 @@ var osModule = map[string]tengo.Object{
 		Name:  "exit",
 		Value: FuncAIR(os.Exit),
 	}, // exit(code int)
+	"sleep": &tengo.UserFunction{
+		Name: "sleep",
+		Value: func(args ...tengo.Object) (tengo.Object, error) {
+			if err := tengo.ArgCount(args, 1); err != nil {
+				return nil, err
+			}
+			n, err := tengo.ArgInt(args, 0, "duration")
+			if err != nil {
+				return nil, err
+			}
+			time.Sleep(time.Duration(n))
+			return tengo.UndefinedValue, nil
+		},
+	}, // sleep(duration int)
 	"expand_env": &tengo.UserFunction{
 		Name:  "expand_env",
 		Value: osExpandEnv,
