@@ -1,0 +1,41 @@
+NAME
+    string, int, float, bool, char, bytes, time - type conversion builtins
+
+SYNOPSIS
+    string(v[, default]) -> string
+    int(v[, default])    -> int
+    float(v[, default])  -> float
+    bool(v)              -> bool
+    char(v[, default])   -> char
+    bytes(v[, default])  -> bytes
+    time(v)              -> time
+
+DESCRIPTION
+    Attempt to convert v to the target type. If conversion fails and a
+    default is provided, the default is returned. If no default is given
+    and conversion fails, undefined is returned.
+
+    The default does not need to be the target type; it is returned as-is.
+
+    bytes(n int) creates a zero-filled byte array of length n.
+    time(n int)  treats n as a Unix timestamp (seconds).
+
+EXAMPLES
+    int("123")           // 123
+    int("bad")           // undefined
+    int("bad", 0)        // 0
+    int("bad", false)    // false  (default need not be int)
+
+    float("-9.5")        // -9.5
+    string(42)           // "42"
+    bool(0)              // false
+    bool(1)              // true
+
+    char(65)             // 'A'
+    bytes("hello")       // bytes [104 101 108 108 111]
+    bytes(4)             // bytes [0 0 0 0]
+
+    time(1257894000)     // 2009-11-10 23:00:00 +0000 UTC
+
+SEE ALSO
+    type_name, is_type, types, format

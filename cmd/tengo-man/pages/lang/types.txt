@@ -1,0 +1,55 @@
+NAME
+    types - Tengo value types
+
+TYPES
+    int           signed 64-bit integer            (Go: int64)
+    float         64-bit floating point            (Go: float64)
+    bool          true or false                    (Go: bool)
+    char          unicode code point               (Go: rune)
+    string        unicode string                   (Go: string)
+    bytes         byte array                       (Go: []byte)
+    time          point in time                    (Go: time.Time)
+    array         ordered mutable sequence
+    immutable array  ordered immutable sequence
+    map           string-keyed mutable map
+    immutable map    string-keyed immutable map
+    error         error value with .value selector
+    undefined     absence of a value
+    function      compiled or user function
+
+LITERALS
+    19            int
+    3.14          float
+    true  false   bool
+    'A'           char
+    "hello"       string
+    `raw string`  string (no escape processing)
+    [1, 2, 3]     array  (trailing comma OK)
+    {k: v}        map    (trailing comma OK)
+
+ZERO / FALSY VALUES
+    All types have a falsy form: 0, 0.0, false, NUL char '\0',
+    "", empty bytes, zero time, empty array/map, undefined, error.
+    Non-zero values are truthy.
+
+TYPE CONVERSION
+    string(x)     int(x)     float(x)
+    bool(x)       char(x)    bytes(x)    time(x)
+
+    All converters accept an optional default as a second argument
+    returned when conversion fails:
+
+        int("bad", 0)   // 0 instead of undefined
+
+TYPE CHECKING
+    type_name(x)       // returns type name as string
+    is_int(x)          is_float(x)    is_string(x)
+    is_bool(x)         is_char(x)     is_bytes(x)
+    is_array(x)        is_map(x)      is_time(x)
+    is_error(x)        is_undefined(x)
+    is_function(x)     is_callable(x)
+    is_immutable_array(x)   is_immutable_map(x)
+    is_iterable(x)
+
+SEE ALSO
+    operators, immutable, freeze, int, float, string, char, bytes

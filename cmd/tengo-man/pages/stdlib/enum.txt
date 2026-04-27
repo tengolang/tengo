@@ -1,0 +1,39 @@
+NAME
+    enum - functional operations on arrays and maps
+
+SYNOPSIS
+    enum := import("enum")
+
+FUNCTIONS
+    ARRAY OPERATIONS
+    enum.all(arr, fn)       -> bool   true if fn(v) is true for all elements
+    enum.any(arr, fn)       -> bool   true if fn(v) is true for any element
+    enum.filter(arr, fn)    -> array  elements where fn(v) is truthy
+    enum.map(arr, fn)       -> array  fn(v) applied to each element
+    enum.each(arr, fn)               call fn(i, v) for each element
+    enum.reduce(arr, init, fn) -> value  fn(acc, v) folded left
+
+    MAP OPERATIONS
+    enum.all(map, fn)       fn receives (key, value)
+    enum.any(map, fn)       fn receives (key, value)
+    enum.filter(map, fn)    -> map    pairs where fn(k,v) is truthy
+    enum.map(map, fn)       -> map    fn(k,v) applied to each value
+    enum.each(map, fn)               call fn(k, v) for each pair
+
+EXAMPLES
+    enum := import("enum")
+
+    nums := [1, 2, 3, 4, 5]
+
+    enum.filter(nums, func(x) { return x > 2 })  // [3, 4, 5]
+    enum.map(nums, func(x) { return x * 2 })      // [2, 4, 6, 8, 10]
+    enum.reduce(nums, 0, func(acc, x) { return acc + x }) // 15
+    enum.all(nums, func(x) { return x > 0 })      // true
+    enum.any(nums, func(x) { return x > 4 })      // true
+
+    m := {a: 1, b: 2, c: 3}
+    enum.filter(m, func(k,v) { return v > 1 })    // {b:2, c:3}
+    enum.map(m, func(k,v) { return v * 10 })       // {a:10, b:20, c:30}
+
+SEE ALSO
+    import, for-in, append, assoc

@@ -1,0 +1,78 @@
+NAME
+    text - string manipulation and regular expressions
+
+SYNOPSIS
+    text := import("text")
+
+FUNCTIONS
+    CASE
+    text.to_upper(s)             text.to_lower(s)
+    text.to_title(s)
+
+    SEARCH
+    text.contains(s, sub)        -> bool
+    text.contains_any(s, chars)  -> bool
+    text.has_prefix(s, prefix)   -> bool
+    text.has_suffix(s, suffix)   -> bool
+    text.count(s, sub)           -> int
+    text.index(s, sub)           -> int   (-1 if not found)
+    text.last_index(s, sub)      -> int
+    text.index_any(s, chars)     -> int
+    text.last_index_any(s, chars)-> int
+    text.index_byte(s, byte)     -> int
+
+    TRANSFORM
+    text.replace(s, old, new, n) -> string   (n<0 = all)
+    text.replace_all(s, old, new)-> string
+    text.trim(s, cutset)         -> string
+    text.trim_left(s, cutset)    -> string
+    text.trim_right(s, cutset)   -> string
+    text.trim_prefix(s, prefix)  -> string
+    text.trim_suffix(s, suffix)  -> string
+    text.trim_space(s)           -> string
+    text.title(s)                -> string   (deprecated in Go, use to_title)
+
+    SPLIT / JOIN
+    text.split(s, sep)           -> array
+    text.split_after(s, sep)     -> array
+    text.split_n(s, sep, n)      -> array
+    text.split_after_n(s, sep, n)-> array
+    text.join(arr, sep)          -> string
+    text.fields(s)               -> array   (split on whitespace)
+
+    REPEAT / PAD
+    text.repeat(s, n)            -> string
+
+    CONVERSION
+    text.atoi(s)                 -> int | error
+    text.itoa(n int)             -> string
+    text.format_bool(b)          -> string
+    text.parse_bool(s)           -> bool | error
+    text.format_float(f, fmt, prec, bits) -> string
+    text.parse_float(s, bits)    -> float | error
+    text.format_int(i, base)     -> string
+    text.parse_int(s, base, bits)-> int | error
+    text.quote(s)                -> string   (Go-style quoted string)
+    text.unquote(s)              -> string | error
+
+    REGEX
+    text.re_match(pattern, s)    -> bool
+    text.re_find(pattern, s, n)  -> array of strings
+    text.re_find_all(pattern, s, n) -> array of arrays
+    text.re_replace_all(pattern, s, repl) -> string
+    text.re_split(pattern, s, n) -> array
+
+EXAMPLES
+    text := import("text")
+
+    text.to_upper("hello")            // "HELLO"
+    text.split("a,b,c", ",")          // ["a", "b", "c"]
+    text.join(["a","b","c"], "-")      // "a-b-c"
+    text.trim_space("  hi  ")         // "hi"
+    text.replace("aabbcc", "b", "X", 1) // "aaXbcc"
+    text.re_match(`^\d+$`, "123")     // true
+    text.re_find(`\d+`, "abc123def456", -1) // ["123", "456"]
+    text.atoi("42")                   // 42
+
+SEE ALSO
+    import, format, string

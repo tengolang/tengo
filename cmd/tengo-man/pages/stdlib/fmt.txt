@@ -1,0 +1,23 @@
+NAME
+    fmt - print and format functions
+
+SYNOPSIS
+    fmt := import("fmt")
+
+FUNCTIONS
+    fmt.print(args...)       print args to stdout, space-separated
+    fmt.println(args...)     print args to stdout with trailing newline
+    fmt.printf(fmt, args...) print formatted string to stdout
+    fmt.sprintf(fmt, args...) -> string    format without printing
+    fmt.errorf(fmt, args...) -> error      create formatted error value
+
+EXAMPLES
+    fmt := import("fmt")
+
+    fmt.println("hello", "world")           // hello world
+    fmt.printf("x=%d, y=%.2f\n", 3, 1.5)   // x=3, y=1.50
+    s := fmt.sprintf("v=%v", [1,2,3])       // "[1, 2, 3]"
+    e := fmt.errorf("bad input: %s", name)
+
+SEE ALSO
+    format, import

@@ -1,0 +1,74 @@
+NAME
+    os - operating system interface
+
+SYNOPSIS
+    os := import("os")
+
+CONSTANTS
+    os.o_rdonly   os.o_wronly   os.o_rdwr
+    os.o_append   os.o_create   os.o_excl    os.o_sync   os.o_trunc
+    os.mode_dir   os.mode_append ... (standard os.ModeXxx values)
+    os.path_separator       ("/" or "\")
+    os.path_list_separator  (":" or ";")
+    os.dev_null             ("/dev/null" or "nul")
+
+FUNCTIONS
+    ENVIRONMENT
+    os.getenv(key) -> string
+    os.setenv(key, value) -> error
+    os.unsetenv(key) -> error
+    os.environ() -> array    list of "KEY=value" strings
+    os.expand(s string) -> string   expand $VAR references
+    os.expand_env(s) -> string
+
+    ARGS
+    os.args() -> array       command-line arguments
+
+    FILES
+    os.open(path) -> file | error
+    os.create(path) -> file | error
+    os.open_file(path, flag, perm) -> file | error
+    os.read_file(path) -> bytes | error
+    os.write_file(path, data bytes, perm) -> error
+    os.remove(path) -> error
+    os.remove_all(path) -> error
+    os.rename(old, new) -> error
+    os.mkdir(path, perm) -> error
+    os.mkdir_all(path, perm) -> error
+    os.mkdir_temp(dir, pattern) -> string | error
+    os.stat(path) -> info | error
+    os.lstat(path) -> info | error
+    os.read_dir(path) -> array | error
+    os.symlink(old, new) -> error
+    os.readlink(path) -> string | error
+
+    FILE OBJECT METHODS (f := os.open(...))
+    f.read(b bytes) -> int | error
+    f.write(b bytes) -> int | error
+    f.write_string(s) -> int | error
+    f.close() -> error
+    f.seek(offset, whence) -> int | error
+    f.stat() -> info | error
+    f.name() -> string
+    f.read_dir() -> array | error
+
+    PROCESS
+    os.exit(code int)
+    os.exec(args array) -> {cmd, output, combined, state, error}
+
+EXAMPLES
+    os := import("os")
+
+    data := os.read_file("input.txt")
+    os.write_file("out.txt", data, 0644)
+
+    os.getenv("HOME")   // "/home/alice"
+    os.args()           // ["script.tengo", "arg1", ...]
+
+    f := os.open("data.txt")
+    buf := bytes(1024)
+    n := f.read(buf)
+    f.close()
+
+SEE ALSO
+    import

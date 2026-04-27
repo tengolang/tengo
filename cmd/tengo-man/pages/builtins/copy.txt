@@ -1,0 +1,24 @@
+NAME
+    copy - deep-copy a value
+
+SYNOPSIS
+    copy(v) -> value
+
+DESCRIPTION
+    Returns a deep copy of v. If v is an immutable value, copy returns
+    a mutable copy. Primitives (int, float, string, bool, char, bytes)
+    are returned as-is since they are already value types.
+
+EXAMPLES
+    a := [1, 2, 3]
+    b := a          // b and a share the same array
+    c := copy(a)    // c is an independent copy
+    a[0] = 99
+    // b[0] == 99, c[0] == 1
+
+    im := immutable([1, 2, 3])
+    m  := copy(im)           // m is a mutable array
+    is_immutable_array(m)    // false
+
+SEE ALSO
+    freeze, append, assoc

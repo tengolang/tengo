@@ -1,0 +1,27 @@
+NAME
+    format - format a string
+
+SYNOPSIS
+    format(fmtstr string, args...) -> string
+
+DESCRIPTION
+    Returns a formatted string. The format string uses Go-style verbs.
+    The first argument must be a string.
+
+COMMON VERBS
+    %v    default format
+    %d    integer
+    %f    float
+    %s    string
+    %t    bool
+    %q    quoted string
+    %x    hex
+    %%    literal %
+
+EXAMPLES
+    format("Hello, %s!", "world")    // "Hello, world!"
+    format("x=%d y=%.2f", 3, 1.5)   // "x=3 y=1.50"
+    format("%v", [1, 2, 3])          // "[1, 2, 3]"
+
+SEE ALSO
+    fmt (stdlib), string

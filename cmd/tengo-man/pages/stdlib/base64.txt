@@ -1,0 +1,37 @@
+NAME
+    base64 - base64 encoding and decoding
+
+SYNOPSIS
+    base64 := import("base64")
+
+FUNCTIONS
+    base64.encode(b bytes) -> string
+        Standard base64 encoding (with padding).
+
+    base64.decode(s string) -> bytes | error
+        Decode a standard base64 string.
+
+    base64.raw_encode(b bytes) -> string
+        Base64 encoding without padding characters.
+
+    base64.raw_decode(s string) -> bytes | error
+        Decode a padding-free base64 string.
+
+    base64.url_encode(b bytes) -> string
+        URL-safe base64 encoding (uses - and _ instead of + and /).
+
+    base64.url_decode(s string) -> bytes | error
+        Decode a URL-safe base64 string.
+
+    base64.raw_url_encode(b bytes) -> string
+    base64.raw_url_decode(s string) -> bytes | error
+
+EXAMPLES
+    base64 := import("base64")
+
+    base64.encode(bytes("hello"))       // "aGVsbG8="
+    base64.decode("aGVsbG8=")          // bytes("hello")
+    base64.url_encode(bytes("a+b/c"))  // "YStiL2M="
+
+SEE ALSO
+    hex, import

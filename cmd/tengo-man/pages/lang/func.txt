@@ -1,0 +1,51 @@
+NAME
+    func - function definition
+
+SYNOPSIS
+    name := func(params) { ... }
+    func name(params) { ... }        // named shorthand (same effect)
+    func(params) { ... }             // anonymous / immediately invoked
+
+DESCRIPTION
+    Functions are first-class values. They capture variables from the
+    enclosing scope (closures). The named shorthand desugars to a :=
+    assignment at parse time; the two forms are identical at runtime.
+
+    return exits the function and optionally returns a value.
+    A function with no return statement returns undefined.
+
+VARIADIC FUNCTIONS
+    The last parameter may be variadic using the ... suffix.
+    Variadic args are collected into an array.
+
+        func f(a, b, ...rest) { return rest }
+        f(1, 2, 3, 4)   // rest == [3, 4]
+
+    An array can be spread into arguments with ...:
+
+        f(1, [2, 3, 4]...)
+
+METHOD STYLE (:: operator)
+    When a function stored in a map field receives the map as its first
+    argument, call it with :: to pass the receiver automatically:
+
+        obj::method(a, b)   // same as obj.method(obj, a, b)
+
+EXAMPLES
+    add := func(a, b) { return a + b }
+
+    func greet(name) {
+        return "hello, " + name
+    }
+
+    adder := func(base) {
+        return func(x) { return base + x }   // closure over base
+    }
+    add5 := adder(5)
+    add5(3)  // 8
+
+    // immediately invoked
+    result := func(x) { return x * 2 }(21)  // 42
+
+SEE ALSO
+    operators, import, types

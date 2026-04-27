@@ -1,0 +1,74 @@
+NAME
+    coro - coroutines: pauseable functions that preserve local state
+
+SYNOPSIS
+    coro := import("coro")
+
+DESCRIPTION
+    A coroutine is a function that can yield values to its caller and be
+    resumed later. Each resume/yield pair is a synchronous handshake; only
+    one side runs at a time. Coroutines are backed by goroutines but behave
+    cooperatively from the script's perspective.
+
+CREATING A COROUTINE
+    co := coro.new(func(yield) {
+        yield(1)
+        yield(2)
+        yield(3)
+    })
+
+COROUTINE OBJECT
+    co.resume()          -> (value, alive bool)
+        Resume the coroutine. Returns the next yielded value and true,
+        or undefined and false when the coroutine is done.
+
+    co.close()
+        Stop the coroutine. Safe to call on a dead coroutine (no-op).
+
+    co.status            -> string
+        "suspended" while the coroutine has more to yield, "dead" when done.
+
+ITERATION
+    Coroutines are iterable; use for-in as a convenient pull loop:
+
+        for v in co { ... }   // stops automatically when co is dead
+
+SEND VALUE TO COROUTINE
+    The argument to resume is available as the return value of yield
+    inside the coroutine:
+
+        // inside coroutine:
+        x := yield(outgoing)   // x receives the next resume argument
+
+        // caller:
+        co.resume(incoming)
+
+EXAMPLES
+    coro := import("coro")
+
+    // generator
+    counter := coro.new(func(yield) {
+        i := 0
+        for { yield(i); i++ }
+    })
+    v, ok := counter.resume()  // v=0, ok=true
+    v, ok  = counter.resume()  // v=1, ok=true
+
+    // for-in iteration
+    gen := coro.new(func(yield) {
+        for _, v in [10, 20, 30] { yield(v) }
+    })
+    for v in gen { fmt.println(v) }  // 10, 20, 30
+
+    // pipeline: chain coroutines
+    stage1 := coro.new(func(yield) { ... })
+    stage2 := coro.new(func(yield) {
+        for v in stage1 { yield(process(v)) }
+    })
+
+ERROR HANDLING
+    A runtime error inside a coroutine surfaces on the next resume()
+    call as a runtime error in the caller. The coroutine becomes dead.
+
+SEE ALSO
+    import, for-in, func

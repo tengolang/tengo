@@ -1,0 +1,56 @@
+NAME
+    switch - multi-way branch statement
+
+SYNOPSIS
+    switch [init;] [tag] { case val[, val...]: ... default: ... }
+
+DESCRIPTION
+    Evaluates tag and runs the first matching case body. Cases do not
+    fall through by default; use fallthrough to continue into the next
+    case body. A default clause runs when no case matches.
+
+    Omitting tag makes each case a boolean condition (tagless switch).
+
+    An optional init statement runs before the tag is evaluated;
+    variables it defines are scoped to the switch block.
+
+EXAMPLES
+    // tagged switch
+    switch x {
+    case 1:
+        out = "one"
+    case 2, 3:
+        out = "two or three"
+    default:
+        out = "other"
+    }
+
+    // init statement
+    switch v := compute(); v {
+    case "ok":  handle()
+    case "err": recover()
+    }
+
+    // tagless switch (boolean conditions)
+    switch {
+    case score >= 90: grade = "A"
+    case score >= 80: grade = "B"
+    default:          grade = "C"
+    }
+
+    // fallthrough: executes next case body regardless of its condition
+    switch x {
+    case 1:
+        a = append(a, 1)
+        fallthrough
+    case 2:
+        a = append(a, 2)   // runs when x==1 (fallthrough) or x==2
+    }
+
+CONTROL FLOW
+    break       exits the switch early
+    fallthrough transfers to the next case body (skipping its condition)
+    continue    targets the enclosing loop, not the switch
+
+SEE ALSO
+    if, for, operators

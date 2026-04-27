@@ -1,0 +1,34 @@
+NAME
+    if - conditional statement
+
+SYNOPSIS
+    if [init;] condition { ... } [else if ... ] [else { ... }]
+
+DESCRIPTION
+    Standard conditional. An optional init statement runs before the
+    condition is evaluated; variables it defines are scoped to the
+    entire if/else chain.
+
+EXAMPLES
+    if x < 0 {
+        // negative
+    } else if x == 0 {
+        // zero
+    } else {
+        // positive
+    }
+
+    // init statement
+    if v := compute(); v > 0 {
+        use(v)
+    }
+
+CONSTANT CONDITIONS
+    If the condition is a pure literal expression it is evaluated at
+    compile time and the dead branch is eliminated entirely:
+
+        if true  { A() } else { B() }   // only A() is compiled
+        if false { A() } else { B() }   // only B() is compiled
+
+SEE ALSO
+    switch, for, operators

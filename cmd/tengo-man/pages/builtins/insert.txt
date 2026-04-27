@@ -1,0 +1,21 @@
+NAME
+    insert - return a new array with an element inserted
+
+SYNOPSIS
+    insert(array, index int, value) -> array
+
+DESCRIPTION
+    Returns a new array with value inserted before the element at index,
+    without modifying the original. An index equal to the array length
+    is equivalent to appending. The return type mirrors the input.
+
+EXAMPLES
+    a := [1, 3, 4]
+    b := insert(a, 1, 2)   // b == [1, 2, 3, 4]; a unchanged
+
+    ia := immutable([1, 2])
+    ib := insert(ia, 0, 0) // prepend: ib == immutable([0, 1, 2])
+    ic := insert(ia, 2, 3) // append:  ic == immutable([1, 2, 3])
+
+SEE ALSO
+    remove, assoc, append, splice

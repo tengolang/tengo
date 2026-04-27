@@ -1,0 +1,20 @@
+NAME
+    dissoc - return a new map without the given key
+
+SYNOPSIS
+    dissoc(map, key string) -> map
+
+DESCRIPTION
+    Returns a new map with the given key removed, without modifying the
+    original. If the key is not present, returns a copy of the original.
+    The return type mirrors the input (mutable or immutable).
+
+EXAMPLES
+    m := {a: 1, b: 2, c: 3}
+    m2 := dissoc(m, "b")   // m2 == {a:1, c:3}; m unchanged
+
+    im := immutable({a: 1, b: 2})
+    im2 := dissoc(im, "a") // im2 == immutable({b:2})
+
+SEE ALSO
+    assoc, delete, insert, remove

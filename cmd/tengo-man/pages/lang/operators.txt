@@ -1,0 +1,57 @@
+NAME
+    operators - Tengo operators and precedence
+
+ASSIGNMENT
+    :=    define new variable in current scope
+    =     assign to existing variable
+    +=  -=  *=  /=  %=  &=  |=  ^=  &^=  <<=  >>=
+    ++    (lhs) = (lhs) + 1
+    --    (lhs) = (lhs) - 1
+
+ARITHMETIC
+    +   -   *   /   %
+
+    int + int = int        float + float = float
+    int + float = float    string + string = string  (concat)
+    time + int = time      (int is nanoseconds)
+    time - time = int      (result in nanoseconds)
+    array + array = array  (concat)
+
+COMPARISON
+    ==   !=   <   <=   >   >=
+
+    int == float is supported (int is converted to float).
+
+LOGICAL
+    &&   ||   !
+
+    All values are truthy or falsy; ! works on any type.
+
+BITWISE (int only)
+    &   |   ^   &^   <<   >>   ^x (unary complement)
+
+TERNARY
+    condition ? true_expr : false_expr
+
+    Has the lowest precedence; can be nested.
+
+METHOD CALL
+    obj::method(args)
+    Equivalent to obj.method(obj, args); receiver evaluated once.
+
+SELECTOR / INDEXER
+    obj.key      obj["key"]     arr[0]     arr[1:3]
+
+    Out-of-bounds index or missing key returns undefined.
+
+PRECEDENCE (high to low)
+    unary   +  -  !  ^
+    5       *  /  %  <<  >>  &  &^
+    4       +  -  |  ^
+    3       ==  !=  <  <=  >  >=
+    2       &&
+    1       ||
+    0       ?:   (ternary, lowest)
+
+SEE ALSO
+    types, if, for

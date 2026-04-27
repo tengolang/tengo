@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -48,6 +49,10 @@ func main() {
 
 	modules := stdlib.GetModuleMap(stdlib.AllModuleNames()...)
 	inputFile := flag.Arg(0)
+	if inputFile == "man" {
+		doMan(flag.Args()[1:])
+		return
+	}
 	if inputFile == "" {
 		// REPL
 		RunREPL(modules, os.Stdin, os.Stdout)
@@ -250,6 +255,26 @@ func compileSrc(
 	return bytecode, nil
 }
 
+func doMan(args []string) {
+	path, err := exec.LookPath("tengo-man")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "tengo-man not found.")
+		fmt.Fprintln(os.Stderr, "Install with:")
+		fmt.Fprintln(os.Stderr, "  go install github.com/tengolang/tengo/v3/cmd/tengo-man@latest")
+		os.Exit(1)
+	}
+	cmd := exec.Command(path, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		if e, ok := err.(*exec.ExitError); ok {
+			os.Exit(e.ExitCode())
+		}
+		os.Exit(1)
+	}
+}
+
 func doHelp() {
 	fmt.Println("Usage:")
 	fmt.Println()
@@ -279,6 +304,11 @@ func doHelp() {
 	fmt.Println()
 	fmt.Println("	          Run bytecode file (myapp)")
 	fmt.Println()
+	fmt.Println("	tengo man [topic]")
+	fmt.Println()
+	fmt.Println("	          Show reference manual for a topic.")
+	fmt.Println("	          Requires tengo-man to be installed:")
+	fmt.Println("	          go install github.com/tengolang/tengo/v3/cmd/tengo-man@latest")
 	fmt.Println()
 }
 

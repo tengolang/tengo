@@ -1,0 +1,19 @@
+NAME
+    remove - return a new array with one element removed
+
+SYNOPSIS
+    remove(array, index int) -> array
+
+DESCRIPTION
+    Returns a new array with the element at index removed, without
+    modifying the original. The return type mirrors the input.
+
+EXAMPLES
+    a := [1, 2, 3]
+    b := remove(a, 1)   // b == [1, 3]; a unchanged
+
+    ia := immutable([10, 20, 30])
+    ib := remove(ia, 0) // ib == immutable([20, 30])
+
+SEE ALSO
+    insert, assoc, dissoc, splice

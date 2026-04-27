@@ -1,0 +1,21 @@
+NAME
+    len - return the number of elements in a value
+
+SYNOPSIS
+    len(v) -> int
+
+DESCRIPTION
+    Returns the number of elements in v. Works on:
+        array, immutable array   number of elements
+        map, immutable map       number of key-value pairs
+        string                   number of bytes (not runes)
+        bytes                    number of bytes
+
+EXAMPLES
+    len([1, 2, 3])          // 3
+    len({a: 1, b: 2})       // 2
+    len("hello")            // 5
+    len(bytes("hi"))        // 2
+
+SEE ALSO
+    append, copy, splice

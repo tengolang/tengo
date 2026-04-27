@@ -1,0 +1,21 @@
+NAME
+    hex - hexadecimal encoding and decoding
+
+SYNOPSIS
+    hex := import("hex")
+
+FUNCTIONS
+    hex.encode(b bytes) -> string
+        Encode b as a lowercase hex string.
+
+    hex.decode(s string) -> bytes | error
+        Decode a hex string into bytes.
+
+EXAMPLES
+    hex := import("hex")
+
+    hex.encode(bytes("hi"))     // "6869"
+    hex.decode("6869")          // bytes [104 105]
+
+SEE ALSO
+    base64, import

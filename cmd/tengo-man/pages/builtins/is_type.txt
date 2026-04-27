@@ -1,0 +1,33 @@
+NAME
+    is_type - type-checking builtin functions
+
+SYNOPSIS
+    is_int(v)              is_float(v)
+    is_bool(v)             is_char(v)
+    is_string(v)           is_bytes(v)
+    is_time(v)             is_error(v)
+    is_undefined(v)        is_function(v)
+    is_callable(v)         is_array(v)
+    is_immutable_array(v)  is_map(v)
+    is_immutable_map(v)    is_iterable(v)
+
+DESCRIPTION
+    All return bool: true if v is of the named type, false otherwise.
+
+    is_function    true only for compiled functions and closures.
+                   Returns false for builtins and user callable objects.
+    is_callable    true for anything that can be called: compiled
+                   functions, builtins, and user-defined callable objects.
+    is_iterable    true for array, immutable array, map, immutable map,
+                   string, and bytes.
+
+EXAMPLES
+    is_int(42)              // true
+    is_int("42")            // false
+    is_callable(len)        // true
+    is_function(len)        // false  (len is a builtin)
+    is_iterable([1,2,3])   // true
+    is_iterable(42)         // false
+
+SEE ALSO
+    type_name, types

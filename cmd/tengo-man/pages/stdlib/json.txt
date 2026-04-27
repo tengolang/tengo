@@ -1,0 +1,38 @@
+NAME
+    json - JSON encoding and decoding
+
+SYNOPSIS
+    json := import("json")
+
+FUNCTIONS
+    json.encode(v) -> bytes | error
+        Marshal v to JSON. Returns bytes on success.
+
+    json.decode(b bytes|string) -> value | error
+        Unmarshal JSON into a Tengo value. JSON objects become maps,
+        arrays become arrays, numbers become int or float.
+
+    json.indent(b bytes|string, prefix, indent string) -> bytes | error
+        Pretty-print JSON with the given prefix and indent string.
+
+    json.html_escape(b bytes|string) -> bytes
+        Escape HTML characters in a JSON byte slice.
+
+EXAMPLES
+    json := import("json")
+
+    data := json.encode({name: "Alice", age: 30})
+    // data == bytes(`{"age":30,"name":"Alice"}`)
+
+    v := json.decode(`{"x": 1, "y": [2, 3]}`)
+    v.x     // 1
+    v.y[0]  // 2
+
+    pretty := json.indent(data, "", "  ")
+    // {
+    //   "age": 30,
+    //   "name": "Alice"
+    // }
+
+SEE ALSO
+    import, text, fmt

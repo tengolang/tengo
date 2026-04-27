@@ -1,0 +1,107 @@
+NAME
+    times - time and duration functions
+
+SYNOPSIS
+    times := import("times")
+
+CONSTANTS
+    Format strings:
+        format_ansic         "Mon Jan _2 15:04:05 2006"
+        format_unix_date     "Mon Jan _2 15:04:05 MST 2006"
+        format_ruby_date     "Mon Jan 02 15:04:05 -0700 2006"
+        format_rfc822        "02 Jan 06 15:04 MST"
+        format_rfc822z       "02 Jan 06 15:04 -0700"
+        format_rfc850        "Monday, 02-Jan-06 15:04:05 MST"
+        format_rfc1123       "Mon, 02 Jan 2006 15:04:05 MST"
+        format_rfc1123z      "Mon, 02 Jan 2006 15:04:05 -0700"
+        format_rfc3339       "2006-01-02T15:04:05Z07:00"
+        format_rfc3339_nano  "2006-01-02T15:04:05.999999999Z07:00"
+        format_kitchen       "3:04PM"
+        format_stamp         "Jan _2 15:04:05"
+        format_datetime      "2006-01-02 15:04:05"
+        format_date_only     "2006-01-02"
+        format_time_only     "15:04:05"
+
+    Duration constants (in nanoseconds):
+        nanosecond  microsecond  millisecond
+        second      minute       hour
+
+    Month constants:
+        january  february  march     april    may       june
+        july     august    september october  november  december
+
+FUNCTIONS
+    now() -> time
+        Current local time.
+
+    sleep(duration int)
+        Pause for at least duration nanoseconds.
+
+    parse(format, s string) -> time | error
+        Parse s according to format (Go reference time layout).
+
+    parse_duration(s string) -> int | error
+        Parse a duration string ("1h30m", "500ms", "2s"). Returns nanoseconds.
+
+    parse_in_location(format, s, location string) -> time | error
+        Like parse but interprets s in the named timezone
+        (e.g., "America/New_York"). Use when the string has no TZ info.
+
+    format(t time, format string) -> string
+        Format t using the given layout string.
+
+    time_year(t time) -> int
+    time_month(t time) -> int
+    time_day(t time) -> int
+    time_weekday(t time) -> int        0=Sunday
+    time_hour(t time) -> int
+    time_minute(t time) -> int
+    time_second(t time) -> int
+    time_nanosecond(t time) -> int
+    time_unix(t time) -> int           Unix seconds
+    time_unix_nano(t time) -> int      Unix nanoseconds
+    time_unix_milli(t time) -> int     Unix milliseconds
+    time_location(t time) -> string    Timezone name
+    time_zone(t time) -> {name string, offset int}
+    time_in(t time, location string) -> time
+        Return t expressed in the named timezone.
+    time_is_zero(t time) -> bool
+    time_add(t time, duration int) -> time
+    time_sub(t1, t2 time) -> int       Nanosecond difference
+    time_add_date(t time, years, months, days int) -> time
+    time_before(t, u time) -> bool
+    time_after(t, u time) -> bool
+    time_equal(t, u time) -> bool
+        Reports whether t and u represent the same instant (timezone-independent).
+    truncate(t time, duration int) -> time
+        Round t down to a multiple of duration.
+    round(t time, duration int) -> time
+        Round t to the nearest multiple of duration.
+
+    since(t time) -> int               Nanoseconds elapsed since t
+    until(t time) -> int               Nanoseconds until t
+    unix(sec, nsec int) -> time        Time from Unix timestamp
+    unix_milli(ms int) -> time         Time from Unix milliseconds
+    date(year, month, day, h, m, s, ns int, location string) -> time
+    in_location(t time, location string) -> time | error
+
+EXAMPLES
+    times := import("times")
+
+    now := times.now()
+    times.format(now, times.format_rfc3339)
+
+    t := times.parse(times.format_date_only, "2024-06-01")
+    times.time_year(t)     // 2024
+
+    dur := times.parse_duration("1h30m")  // 5400000000000 ns
+    later := times.time_add(now, dur)
+
+    // timezone-aware parse
+    t2 := times.parse_in_location(times.format_date_only, "2024-06-01", "Europe/Stockholm")
+
+    // truncate to nearest hour
+    times.truncate(now, times.hour)
+
+SEE ALSO
+    import, types

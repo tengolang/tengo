@@ -1,0 +1,32 @@
+NAME
+    splice - delete and/or insert elements in an array
+
+SYNOPSIS
+    splice(array[, start[, deleteCount[, item...]]]) -> deleted_items
+
+DESCRIPTION
+    Modifies the array in place and returns the removed elements as a
+    new array. Similar to JavaScript's Array.prototype.splice().
+
+    start         index to begin changes (default: 0)
+    deleteCount   number of elements to remove (default: all from start)
+    item...       elements to insert at start after removal
+
+EXAMPLES
+    a := [1, 2, 3, 4]
+    removed := splice(a, 1, 2)   // removed==[2,3]; a==[1,4]
+
+    // insert without deleting
+    a := ["a", "c"]
+    splice(a, 1, 0, "b")         // a == ["a", "b", "c"]
+
+    // replace
+    a := ["a", "b", "c"]
+    splice(a, 1, 1, "X", "Y")   // a == ["a", "X", "Y", "c"]
+
+    // delete to end
+    a := [1, 2, 3, 4]
+    splice(a, 2)                 // a == [1, 2]; returns [3, 4]
+
+SEE ALSO
+    append, insert, remove, delete, len

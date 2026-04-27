@@ -1,0 +1,48 @@
+NAME
+    for-in - iteration statement
+
+SYNOPSIS
+    for value in iterable { ... }
+    for key, value in iterable { ... }
+
+DESCRIPTION
+    Iterates over arrays, maps, strings, bytes, and any user type that
+    implements CanIterate(). Iterating over undefined produces zero
+    iterations (the body never runs).
+
+ITERABLE TYPES
+    array         key=index(int),  value=element
+    immutable array  same
+    map           key=string,      value=element  (order undefined)
+    immutable map    same
+    string        key=byte-index,  value=char
+    bytes         key=index(int),  value=byte(int)
+    coroutine     key=resume-count, value=yielded value
+
+EXAMPLES
+    for v in [1, 2, 3] {
+        // v: 1, 2, 3
+    }
+
+    for i, v in [10, 20, 30] {
+        // i=0 v=10, i=1 v=20, i=2 v=30
+    }
+
+    for k, v in {a: 1, b: 2} {
+        // k="a" v=1, k="b" v=2  (map order is not guaranteed)
+    }
+
+    for i, c in "hello" {
+        // c is a char value
+    }
+
+    for i, b in bytes("hi") {
+        // b is an int (0-255)
+    }
+
+    // safe range over a possibly-missing value
+    result := maybe_map()
+    for k, v in result { ... }  // skipped if result is undefined
+
+SEE ALSO
+    for, switch, coro

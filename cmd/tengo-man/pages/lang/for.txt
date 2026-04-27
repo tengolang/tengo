@@ -1,0 +1,29 @@
+NAME
+    for - loop statement
+
+SYNOPSIS
+    for [init]; [condition]; [post] { ... }
+    for condition { ... }
+    for { ... }
+
+DESCRIPTION
+    C-style loop. All three parts are optional.
+
+    break    exits the loop
+    continue advances to the post statement
+
+EXAMPLES
+    for i := 0; i < 10; i++ {
+        // i: 0..9
+    }
+
+    for x < limit {
+        x *= 2
+    }
+
+    for {   // infinite
+        if done { break }
+    }
+
+SEE ALSO
+    for-in, if, switch

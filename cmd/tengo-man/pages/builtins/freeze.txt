@@ -1,0 +1,33 @@
+NAME
+    freeze - recursively make a value fully immutable
+
+SYNOPSIS
+    freeze(x) -> value
+
+DESCRIPTION
+    Converts every mutable container in x to its immutable equivalent:
+        array  -> immutable array  (elements recursively frozen)
+        map    -> immutable map    (values recursively frozen)
+    Primitives (int, float, string, bool, bytes, char, time),
+    functions, and errors are returned as-is.
+
+    If the input already has no mutable containers anywhere in the
+    tree, the original value is returned without allocating.
+
+    Cycles and shared subgraphs are handled correctly: each pointer
+    is only frozen once.
+
+EXAMPLES
+    config := freeze({
+        limits: {max_retries: 3, timeout: 30},
+        tags:   ["prod", "v2"],
+    })
+    is_immutable_map(config)         // true
+    is_immutable_map(config.limits)  // true
+    is_immutable_array(config.tags)  // true
+
+    // sharing across concurrent Compiled clones at zero copy cost
+    compiled.Set("config", config)   // all clones share it safely
+
+SEE ALSO
+    immutable (keyword), copy, assoc

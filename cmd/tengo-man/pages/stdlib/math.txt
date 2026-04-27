@@ -1,0 +1,50 @@
+NAME
+    math - mathematical functions and constants
+
+SYNOPSIS
+    math := import("math")
+
+CONSTANTS
+    math.e           2.718281828...
+    math.pi          3.141592653...
+    math.phi         1.618033988...
+    math.sqrt2       1.414213562...
+    math.sqrte       1.648721270...
+    math.sqrtpi      1.772453850...
+    math.sqrtphi     1.272019649...
+    math.ln2         0.693147180...
+    math.log2e       1.442695040...
+    math.ln10        2.302585092...
+    math.log10e      0.434294481...
+
+FUNCTIONS
+    math.abs(x)         math.ceil(x)        math.floor(x)
+    math.round(x)       math.sqrt(x)        math.cbrt(x)
+    math.log(x)         math.log2(x)        math.log10(x)
+    math.exp(x)         math.exp2(x)
+    math.pow(x, y)      math.pow10(n int)
+    math.sin(x)         math.cos(x)         math.tan(x)
+    math.asin(x)        math.acos(x)        math.atan(x)
+    math.atan2(y, x)
+    math.sinh(x)        math.cosh(x)        math.tanh(x)
+    math.hypot(x, y)
+    math.min(x, y)      math.max(x, y)
+    math.mod(x, y)      math.remainder(x, y)
+    math.trunc(x)
+    math.inf(sign int)  math.is_nan(x)      math.is_inf(x, sign int)
+    math.nan()
+    math.ldexp(frac, exp int)
+    math.copysign(x, y)
+
+EXAMPLES
+    math := import("math")
+
+    math.sqrt(9.0)       // 3.0
+    math.pow(2, 10)      // 1024.0
+    math.abs(-3.14)      // 3.14
+    math.floor(1.9)      // 1.0
+    math.ceil(1.1)       // 2.0
+    math.log2(1024.0)    // 10.0
+
+SEE ALSO
+    import, types

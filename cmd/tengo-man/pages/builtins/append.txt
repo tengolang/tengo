@@ -1,0 +1,20 @@
+NAME
+    append - append elements to an array
+
+SYNOPSIS
+    append(array, elem...) -> array
+
+DESCRIPTION
+    Returns a new array with the given elements appended. Does not
+    modify the original. If the input is an immutable array the
+    returned array is also immutable.
+
+EXAMPLES
+    a := [1, 2]
+    b := append(a, 3, 4)   // b == [1, 2, 3, 4]; a unchanged
+
+    ia := immutable([1, 2])
+    ib := append(ia, 3)    // ib == immutable([1, 2, 3])
+
+SEE ALSO
+    len, insert, remove, splice, assoc

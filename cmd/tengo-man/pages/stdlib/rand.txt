@@ -1,0 +1,33 @@
+NAME
+    rand - random number generation
+
+SYNOPSIS
+    rand := import("rand")
+
+FUNCTIONS
+    rand.int()           -> int     random non-negative int
+    rand.float()         -> float   random float in [0.0, 1.0)
+    rand.intn(n int)     -> int     random int in [0, n)
+    rand.exp_float()     -> float   exponential distribution
+    rand.norm_float()    -> float   normal distribution (mean=0, stddev=1)
+    rand.perm(n int)     -> array   random permutation of [0, n)
+    rand.seed(n int)               seed the RNG (deprecated in Go 1.20+)
+    rand.new(seed int)   -> rand    new independent RNG with given seed
+
+    On a seeded rand object r, all the above functions are available
+    as r.int(), r.float(), etc.
+
+EXAMPLES
+    rand := import("rand")
+
+    rand.intn(100)         // random int in [0, 100)
+    rand.float()           // e.g. 0.7341...
+    rand.perm(5)           // e.g. [3, 0, 4, 1, 2]
+
+    // reproducible sequence
+    r := rand.new(42)
+    r.intn(10)
+    r.intn(10)
+
+SEE ALSO
+    import

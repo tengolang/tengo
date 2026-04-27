@@ -1,0 +1,25 @@
+NAME
+    type_name - return the type of a value as a string
+
+SYNOPSIS
+    type_name(v) -> string
+
+DESCRIPTION
+    Returns the runtime type name of v as a string.
+
+RETURN VALUES
+    "int"             "float"           "bool"
+    "char"            "string"          "bytes"
+    "time"            "array"           "immutable-array"
+    "map"             "immutable-map"   "error"
+    "undefined"       "compiled-function"
+    "builtin-function"
+
+EXAMPLES
+    type_name(42)           // "int"
+    type_name("hi")         // "string"
+    type_name([1,2])        // "array"
+    type_name(immutable({})) // "immutable-map"
+
+SEE ALSO
+    is_int, is_string, is_array, is_map, types

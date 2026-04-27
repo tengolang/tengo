@@ -1,0 +1,18 @@
+NAME
+    delete - remove a key from a map
+
+SYNOPSIS
+    delete(map, key string)
+
+DESCRIPTION
+    Removes the key from the map in place. Returns undefined.
+    Deleting a non-existent key is a no-op. First argument must be a
+    mutable map; second must be a string.
+
+EXAMPLES
+    m := {a: 1, b: 2}
+    delete(m, "a")   // m == {b: 2}
+    delete(m, "x")   // no-op; m unchanged
+
+SEE ALSO
+    dissoc, splice, assoc

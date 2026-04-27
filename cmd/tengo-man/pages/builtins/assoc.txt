@@ -1,0 +1,24 @@
+NAME
+    assoc - return a new collection with one element changed
+
+SYNOPSIS
+    assoc(array, index int, value) -> array
+    assoc(map,   key string, value) -> map
+
+DESCRIPTION
+    Returns a new collection with the given index or key set to value,
+    without modifying the original. The return type mirrors the input:
+    mutable in yields mutable out; immutable in yields immutable out.
+
+EXAMPLES
+    a := [1, 2, 3]
+    b := assoc(a, 1, 99)   // b == [1, 99, 3]; a unchanged
+
+    m := {x: 1, y: 2}
+    m2 := assoc(m, "z", 3) // m2 == {x:1, y:2, z:3}; m unchanged
+
+    ia := immutable([1, 2, 3])
+    ib := assoc(ia, 0, 10) // ib == immutable([10, 2, 3])
+
+SEE ALSO
+    dissoc, insert, remove, freeze, copy

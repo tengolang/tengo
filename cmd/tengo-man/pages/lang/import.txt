@@ -1,0 +1,44 @@
+NAME
+    import - load a module or standard library
+
+SYNOPSIS
+    name := import("module")
+    name := import("./path/to/file")
+
+DESCRIPTION
+    Loads and executes a module, returning its exported value.
+    Module code runs once; subsequent imports of the same module
+    return the cached export.
+
+    Exported values are always immutable.
+
+    File imports resolve relative to the script's directory.
+    The .tengo extension is added automatically when omitted.
+
+    export  stops module execution and returns a value to the caller.
+    A module with no export statement returns undefined.
+
+STANDARD LIBRARY MODULES
+    math      times     text      fmt
+    json      rand      os        enum
+    hex       base64    coro
+
+    Run 'tengo-man <module>' for details on each.
+
+EXAMPLES
+    math := import("math")
+    math.abs(-3.14)   // 3.14
+
+    // file module: mylib.tengo
+    //   base := 10
+    //   export func(x) { return x + base }
+    add := import("./mylib")
+    add(5)   // 15
+
+    // exporting a map of functions
+    //   export { add: func(a,b){return a+b} }
+    lib := import("./mathlib")
+    lib.add(1, 2)
+
+SEE ALSO
+    func, times, math, text, fmt, json, rand, os, coro
