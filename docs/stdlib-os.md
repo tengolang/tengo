@@ -4,6 +4,12 @@
 os := import("os")
 ```
 
+## Standard streams
+
+- `stdin`: standard input as a File object.
+- `stdout`: standard output as a File object.
+- `stderr`: standard error as a File object.
+
 ## Constants
 
 - `platform`

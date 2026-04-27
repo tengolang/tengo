@@ -20,5 +20,7 @@
   encoding and decoding functions
 - [base64](https://github.com/tengolang/tengo/blob/main/docs/stdlib-base64.md):
   base64 encoding and decoding functions
+- [sort](https://github.com/tengolang/tengo/blob/main/docs/stdlib-sort.md):
+  sorting functions for arrays of ints, floats, strings, or arbitrary types
 - [coro](https://github.com/tengolang/tengo/blob/main/docs/stdlib-coro.md):
   coroutines: pauseable functions that preserve local state across yields
