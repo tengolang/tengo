@@ -19,11 +19,11 @@ bytecode on stack-based VM that's written in native Go.
 /* The Tengo Language */
 fmt := import("fmt")
 
-each := func(seq, fn) {
+func each(seq, fn) {
     for x in seq { fn(x) }
 }
 
-sum := func(init, seq) {
+func sum(init, seq) {
     each(seq, func(x) { init += x })
     return init
 }
@@ -103,8 +103,22 @@ _* See [bench scripts](https://github.com/tengolang/tengo/tree/main/testdata/ben
 
 ## Quick Start
 
+**Embed in Go:**
 ```
 go get github.com/tengolang/tengo/v3
+```
+
+**Standalone CLI:**
+```
+go install github.com/tengolang/tengo/v3/cmd/tengo@latest
+go install github.com/tengolang/tengo/v3/cmd/tengo-man@latest
+```
+
+`tengo-man` is a separate binary that provides a terminal reference manual:
+```
+tengo-man times        # stdlib reference
+tengo-man switch       # language reference
+tengo man <topic>      # same, via the tengo CLI
 ```
 
 A simple Go example code that compiles/runs Tengo script code with some input/output values:
@@ -175,6 +189,7 @@ fmt.Println(res) // "success"
 - [Interoperability](https://github.com/tengolang/tengo/blob/main/docs/interoperability.md)
 - [Tengo CLI](https://github.com/tengolang/tengo/blob/main/docs/tengo-cli.md)
 - [Standard Library](https://github.com/tengolang/tengo/blob/main/docs/stdlib.md)
+- Terminal Reference Manual: `tengo man <topic>` (requires `tengo-man`)
 - Syntax Highlighters: [VSCode](https://github.com/lissein/vscode-tengo), [Atom](https://github.com/tengolang/tengo-atom), [Vim](https://github.com/geseq/tengo-vim), [Emacs](https://github.com/CsBigDataHub/tengo-mode)
 - **Why the name Tengo?** It's from [1Q84](https://en.wikipedia.org/wiki/1Q84).
 
