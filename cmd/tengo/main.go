@@ -17,6 +17,19 @@ import (
 	"github.com/tengolang/tengo/v3/stdlib"
 )
 
+// moduleSearchDirs returns the directories to search for external modules.
+// Order: TENGO_MODULE_PATH entries, then ~/.tengo/modules.
+func moduleSearchDirs() []string {
+	var dirs []string
+	if env := os.Getenv("TENGO_MODULE_PATH"); env != "" {
+		dirs = append(dirs, filepath.SplitList(env)...)
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs = append(dirs, filepath.Join(home, ".tengo", "modules"))
+	}
+	return dirs
+}
+
 const (
 	sourceFileExt = ".tengo"
 	replPrompt    = ">> "
@@ -48,6 +61,9 @@ func main() {
 	}
 
 	modules := stdlib.GetModuleMap(stdlib.AllModuleNames()...)
+	searchDirs := moduleSearchDirs()
+	modules.AddLoader(tengo.NewPathLoader(searchDirs...))
+	modules.AddLoader(tengo.NewPluginLoader(searchDirs...))
 	inputFile := flag.Arg(0)
 	if inputFile == "man" {
 		doMan(flag.Args()[1:])

@@ -11,10 +11,24 @@ type ModuleGetter interface {
 	Get(name string) Importable
 }
 
+// Loader is a fallback module loader. It is called by ModuleMap.Get when a
+// module name is not found in the static map. Return (nil, nil) to indicate
+// the module was not found by this loader so the next one is tried.
+type Loader interface {
+	Load(name string) (Importable, error)
+}
+
+// errImportable surfaces a loader error through the Importable interface so
+// it propagates as a compile error rather than a silent "not found".
+type errImportable struct{ err error }
+
+func (e *errImportable) Import(string) (interface{}, error) { return nil, e.err }
+
 // ModuleMap represents a set of named modules. Use NewModuleMap to create a
 // new module map.
 type ModuleMap struct {
-	m map[string]Importable
+	m       map[string]Importable
+	loaders []Loader
 }
 
 // NewModuleMap creates a new module map.
@@ -39,15 +53,35 @@ func (m *ModuleMap) AddSourceModule(name string, src []byte) {
 	m.m[name] = &SourceModule{Src: src}
 }
 
+// AddLoader appends a fallback Loader. Loaders are tried in registration
+// order after the static map is checked. The first loader that returns a
+// non-nil Importable wins; a non-nil error is surfaced as a compile error.
+func (m *ModuleMap) AddLoader(l Loader) {
+	m.loaders = append(m.loaders, l)
+}
+
 // Remove removes a named module.
 func (m *ModuleMap) Remove(name string) {
 	delete(m.m, name)
 }
 
-// Get returns an import module identified by name. It returns if the name is
-// not found.
+// Get returns an import module identified by name. If the name is not in the
+// static map, registered Loaders are tried in order. Returns nil if nothing
+// claims the name.
 func (m *ModuleMap) Get(name string) Importable {
-	return m.m[name]
+	if mod := m.m[name]; mod != nil {
+		return mod
+	}
+	for _, l := range m.loaders {
+		mod, err := l.Load(name)
+		if err != nil {
+			return &errImportable{err}
+		}
+		if mod != nil {
+			return mod
+		}
+	}
+	return nil
 }
 
 // GetBuiltinModule returns a builtin module identified by name. It returns
@@ -64,10 +98,12 @@ func (m *ModuleMap) GetSourceModule(name string) *SourceModule {
 	return mod
 }
 
-// Copy creates a copy of the module map.
+// Copy creates a copy of the module map. Loaders are shared (not deep-copied)
+// since they are expected to be stateless or internally synchronized.
 func (m *ModuleMap) Copy() *ModuleMap {
 	c := &ModuleMap{
-		m: make(map[string]Importable),
+		m:       make(map[string]Importable, len(m.m)),
+		loaders: m.loaders,
 	}
 	for name, mod := range m.m {
 		c.m[name] = mod
