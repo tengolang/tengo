@@ -40,8 +40,10 @@ fmt.println(sum("", [1, 2, 3]))  // "123"
 - Simple and highly readable
   [Syntax](https://github.com/tengolang/tengo/blob/main/docs/tutorial.md)
   - Dynamic typing with type coercion
-  - Higher-order functions and closures
-  - Immutable values
+  - Higher-order functions, closures, and named function syntax
+  - Method-call syntax (`obj::method(args)`)
+  - Switch statements with `fallthrough` and tagless form
+  - Immutable values and deep-freeze builtin
 - [Securely Embeddable](https://github.com/tengolang/tengo/blob/main/docs/interoperability.md)
   and [Extensible](https://github.com/tengolang/tengo/blob/main/docs/objects.md)
 - Compiler/runtime written in native Go _(no external deps or cgo)_
@@ -68,7 +70,7 @@ _✓ solid/native · ~ partial or host-enforced · ✗ absent_
 _**Bytecode VM**: ✓ = dedicated bytecode compiler + VM; ~ = compiles to an internal form without a stable/exposed bytecode layer_  
 _**Opt-in stdlib**: scripts have no file, OS, or network access unless the host explicitly registers it_  
 _**Exec limits**: ✓ = hard deterministic cap (Tengo: `maxAllocs`; starlark-go: `SetMaxExecutionSteps`); ~ = cooperative interrupt signal only, no memory or step guarantees_  
-_**Coroutines**: cooperative yield/resume — not OS threads or goroutines_
+_**Coroutines**: cooperative yield/resume (not OS threads or goroutines)_
 
 
 ## Benchmark
@@ -90,12 +92,12 @@ _**Coroutines**: cooperative yield/resume — not OS threads or goroutines_
 | Python 2 | `1,223ms` | `57ms` | `23ms` | `39ms` | `47ms` | `89ms` |
 | Python 3 | `797ms` | `53ms` | `2,115ms` | `49ms` | `41ms` | `82ms` |
 
-_* **fib(35)**: recursive Fibonacci(35) — stresses function call overhead_  
-_* **score orders**: filter and rank a list of orders — tests maps and mixed arithmetic_  
-_* **word count**: count word frequencies in a large string — tests string ops and maps_  
-_* **moving avg**: sliding average over a number sequence — tests arrays and arithmetic_  
-_* **filter/map**: filter and transform a sequence via closures — tests higher-order functions_  
-_* **dispatch**: route events through a map of handlers — tests map lookups and dynamic calls_  
+_* **fib(35)**: recursive Fibonacci(35); stresses function call overhead_  
+_* **score orders**: filter and rank a list of orders; tests maps and mixed arithmetic_  
+_* **word count**: count word frequencies in a large string; tests string ops and maps_  
+_* **moving avg**: sliding average over a number sequence; tests arrays and arithmetic_  
+_* **filter/map**: filter and transform a sequence via closures; tests higher-order functions_  
+_* **dispatch**: route events through a map of handlers; tests map lookups and dynamic calls_  
 _* **Go** does not read the source code from file, while all other cases do_  
 _* See [bench scripts](https://github.com/tengolang/tengo/tree/main/testdata/bench) and [bench tool](https://github.com/tengolang/tengo/tree/main/cmd/bench) for details_
 

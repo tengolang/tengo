@@ -1,6 +1,18 @@
-# Proposed builtin: `freeze`
+# freeze builtin: implementation notes
 
-## Motivation
+`freeze` is implemented and documented in
+[builtins.md](builtins.md#freeze).
+
+This file is kept as a record of the original design. The implementation
+follows the spec below with one exception: the memo table is keyed on
+`uintptr` (Go pointer value) rather than `reflect.Pointer`, which avoids
+importing `reflect` for this single use.
+
+---
+
+## Original design document
+
+### Motivation
 
 `freeze(x)` recursively converts a value into its fully immutable equivalent.
 The primary use case is sharing read-only data across concurrent `Clone()`
@@ -12,7 +24,7 @@ Without `freeze`, deep immutability requires constructing `ImmutableMap` and
 `ImmutableArray` values by hand, which is impractical for nested structures
 built at runtime.
 
-## Semantics
+### Semantics
 
 ```
 freeze(x) -> immutable equivalent of x
@@ -28,10 +40,10 @@ freeze(x) -> immutable equivalent of x
 - A fully frozen input with no mutable children → same pointer returned,
   no allocation
 
-## Cycle and DAG handling
+### Cycle and DAG handling
 
-A memo table (`map[uintptr]Object`, keyed on pointer address) must be
-maintained across the recursion:
+A memo table (`map[uintptr]Object`, keyed on pointer address) is maintained
+across the recursion:
 
 - Before processing a container, record `ptr → result` in the memo table.
 - On revisiting the same pointer, return the already-frozen result.
@@ -40,37 +52,9 @@ This handles both cycles (map containing itself) and shared subgraphs
 (same object reachable via multiple paths) correctly and without extra
 allocations.
 
-## Map ordering
-
-`Map` and `ImmutableMap` are both backed by `map[string]Object` in Go.
-Iteration order is undefined (Go deliberately randomizes it). `freeze` makes
-no ordering guarantees and introduces no ordering. This is consistent with
-existing map behaviour.
-
-## Interaction with Clone()
+### Interaction with Clone()
 
 `Compiled.Clone()` calls `g.Copy()` on every global, which shallow-copies
 containers. A frozen global is returned as-is by `Copy()` (all immutable
 types return `self` from `Copy()`), so it is shared across clones at zero
 cost. This is the main performance motivation.
-
-## Implementation notes
-
-- Add `freeze` to `builtins.go` alongside the existing `copy` builtin.
-- Private helper: `func freezeObject(o Object, memo map[uintptr]Object) Object`
-- Entry point checks `len(args) == 1`, calls `freezeObject(args[0], make(map[uintptr]Object))`.
-- The memo map is allocated once per `freeze` call and threaded through
-  recursion; it is not retained afterwards.
-- No new opcodes or parser changes required.
-
-## Example
-
-```tengo
-config := freeze({
-    limits: {max_retries: 3, timeout: 30},
-    tags:   ["prod", "v2"],
-})
-
-// config, config.limits, and config.tags are all immutable.
-// Safe to share across concurrent script clones without copying.
-```

@@ -98,6 +98,18 @@ a = immutable({b: 4, c: immutable([1, 2, 3])})
 a.c[1] = 5     // illegal
 ```
 
+For nested structures, wrapping every level in `immutable` by hand is tedious.
+The [`freeze`](https://github.com/tengolang/tengo/blob/main/docs/builtins.md#freeze)
+builtin recursively converts an entire value tree to immutable in one call:
+
+```golang
+config := freeze({
+    limits: {max_retries: 3, timeout: 30},
+    tags:   ["prod", "v2"],
+})
+// config, config.limits, and config.tags are all immutable
+```
+
 ### Undefined Values
 
 In Tengo, an "undefined" value can be used to represent an unexpected or
@@ -130,6 +142,16 @@ can be accessed using indexer `[]`.
 ["foo", "bar", [1, 2, 3]]   // ok: array with an array element
 ```
 
+Trailing commas are allowed in arrays (useful for multi-line literals):
+
+```golang
+a := [
+    "first",
+    "second",
+    "third",   // trailing comma OK
+]
+```
+
 ### Map Values
 
 In Tengo, map is a set of key-value pairs where key is string and the value is
@@ -143,6 +165,15 @@ m.c                                   // == "foo"
 m.x                                   // == undefined
 
 {a: [1,2,3], b: {c: "foo", d: "bar"}} // ok: map with an array element and a map element
+```
+
+Trailing commas are allowed in maps too:
+
+```golang
+config := {
+    host: "localhost",
+    port: 8080,       // trailing comma OK
+}
 ```
 
 ### Function Values
@@ -163,13 +194,18 @@ add5 := adder(5)
 nine := add5(4)    // == 9
 ```
 
-Unlike Go, Tengo does not have declarations. So the following code is illegal:
+As a shorthand, Tengo supports **named function syntax** that desugars to a
+`:=` assignment at parse time:
 
 ```golang
-func my_func(arg1, arg2) {  // illegal
+func my_func(arg1, arg2) {
   return arg1 + arg2
 }
+// identical to: my_func := func(arg1, arg2) { return arg1 + arg2 }
 ```
+
+Named and anonymous forms are fully equivalent. The named form is just
+syntactic sugar; the name becomes a regular variable in the current scope.
 
 Tengo also supports variadic functions/closures:
 
@@ -216,6 +252,15 @@ f2(1)               // valid; a = 1, b = []
 f2(1, 2)            // valid; a = 1, b = [2]
 f2(1, 2, 3)         // valid; a = 1, b = [2, 3]
 f2([1, 2, 3]...)    // valid; a = 1, b = [2, 3]
+```
+
+Trailing commas are allowed in function calls:
+
+```golang
+result := my_func(
+    arg1,
+    arg2,   // trailing comma OK
+)
 ```
 
 ## Variables and Scopes
@@ -523,7 +568,71 @@ for k, v in {k1: 1, k2: 2} {  // map: key and value
   // 'k' is key
   // 'v' is value
 }
+for i, c in "hello" {          // string: index and char
+  // 'i' is byte index
+  // 'c' is char value
+}
+for i, b in bytes("hi") {      // bytes: index and int byte value
+  // 'i' is index
+  // 'b' is int (0-255)
+}
 ```
+
+Iterating over `undefined` produces zero iterations (the loop body never runs),
+which makes it safe to range over a value that might not exist.
+
+### Switch Statement
+
+"Switch" statement is similar to Go's switch. Each `case` clause contains one
+or more comma-separated match values; a `default` clause is optional.
+
+```golang
+x := 2
+switch x {
+case 1:
+    // ...
+case 2, 3:
+    // matches 2 or 3
+default:
+    // none of the above
+}
+```
+
+Like `if`, the switch may include a short init statement before the tag:
+
+```golang
+switch x := compute(); x {
+case "ok":  // ...
+case "err": // ...
+}
+```
+
+**Tagless switch**: omit the tag to use each `case` as a boolean condition.
+The first true case runs:
+
+```golang
+switch {
+case score >= 90: grade = "A"
+case score >= 80: grade = "B"
+default:          grade = "C"
+}
+```
+
+**`fallthrough`** transfers control to the body of the next case (skipping
+its condition), exactly like Go:
+
+```golang
+switch x {
+case 1:
+    a = append(a, 1)
+    fallthrough
+case 2:
+    a = append(a, 2)  // runs when x==1 (fallthrough) or x==2
+}
+```
+
+**`break`** exits the switch early. **`continue`** inside a switch targets the
+enclosing loop, not the switch itself, consistent with Go.
 
 ## Modules
 
@@ -592,11 +701,35 @@ Like Go, Tengo supports line comments (`//...`) and block comments
 a := 5    // line comments
 ```
 
+## Constant Expressions
+
+Pure literal expressions (arithmetic, comparisons, logical operators, string
+concatenation, and unary operators applied only to literals) are evaluated at
+**compile time** and emitted as a single constant. No runtime instructions are
+generated for them.
+
+```golang
+x := 4 + 5           // emits CONST 9
+s := "ka" + "mi"     // emits CONST "kami"
+b := 1 < 2           // emits TRUE
+n := -(-3)           // emits CONST 3
+```
+
+`if` conditions that are constant literals cause dead branches to be eliminated
+entirely at compile time:
+
+```golang
+if true  { doA() } else { doB() }  // doB() is never compiled
+if false { doA() } else { doB() }  // doA() is never compiled
+```
+
+Expressions involving variables, function calls, or side effects always fall
+through to runtime evaluation as usual.
+
 ## Differences from Go
 
 Unlike Go, Tengo does not have the following:
 
-- Declarations
 - Imaginary values
 - Structs
 - Pointers
@@ -604,7 +737,6 @@ Unlike Go, Tengo does not have the following:
 - Goroutines
 - Tuple assignment
 - Variable parameters
-- Switch statement
 - Goto statement
 - Defer statement
 - Panic
@@ -613,4 +745,7 @@ Unlike Go, Tengo does not have the following:
 Tengo adds the following that Go does not have:
 
 - Ternary operator (`a ? b : c`)
-- Method-call syntax (`obj::method(args)`) — passes the receiver as the first argument
+- Named function syntax (`func name(params) { body }`): syntactic sugar for `:=` assignment
+- Method-call syntax (`obj::method(args)`): passes the receiver as the first argument
+- Trailing commas in arrays, maps, and function calls
+- Constant expression folding: pure literal expressions are evaluated at compile time

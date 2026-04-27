@@ -8,6 +8,7 @@
   - [Type Conversion Table](#type-conversion-table)
   - [User Types](#user-types)
 - [Sandbox Environments](#sandbox-environments)
+- [Context and Cancellation](#context-and-cancellation)
 - [Concurrency](#concurrency)
 - [Pausing and Resuming a VM](#pausing-and-resuming-a-vm)
 - [Tracing and Hooks](#tracing-and-hooks)
@@ -110,13 +111,10 @@ variables _(e.g. trying to set the value of `x` in the example)_.
 
 ### Calling a Tengo Function from Go
 
-Tengo doesn't have a direct "call function by name" API, but you can invoke
-a named function defined in a script by appending an assignment to a reserved
-result variable before compilation.
-
-The key is to reserve both the argument and result variable names with
-`Script.Add` _before_ compiling, so the names are guaranteed to exist in the
-global scope regardless of what the script defines.
+`Compiled.Call` lets you invoke any top-level callable by name directly from
+Go. Arguments are converted from Go types automatically using the same rules as
+`FromInterface` (see [Type Conversion Table](#type-conversion-table)). The
+return value comes back as a `*Variable`.
 
 ```golang
 import (
@@ -125,49 +123,60 @@ import (
     "github.com/tengolang/tengo/v3"
 )
 
-const (
-    resultVar = "__result"
-    arg0Var   = "__arg0"
-)
-
 var source = `
-greetUser := func(name) {
+func greet(name) {
     return "Hello, " + name
 }
 `
 
 func main() {
-    s := tengo.NewScript([]byte(source + "\n" + resultVar + " := greetUser(" + arg0Var + ")"))
-    _ = s.Add(resultVar, nil)
-    _ = s.Add(arg0Var, "")
-
+    s := tengo.NewScript([]byte(source))
     compiled, err := s.Compile()
     if err != nil {
         panic(err)
     }
+    if err := compiled.Run(); err != nil { // execute once to define globals
+        panic(err)
+    }
 
-    // Clone before each run to avoid sharing state between calls.
-    c := compiled.Clone()
-    if err := c.Set(arg0Var, "Alice"); err != nil {
+    ret, err := compiled.Call("greet", "Alice")
+    if err != nil {
         panic(err)
     }
-    if err := c.Run(); err != nil {
-        panic(err)
-    }
-    fmt.Println(c.Get(resultVar).String()) // Hello, Alice
+    fmt.Println(ret.String()) // Hello, Alice
 }
 ```
 
-Because the bytecode is compiled once and cloned per call, the cost of
-invoking the function repeatedly is just `Clone` + `Set` + `Run` — no
-re-compilation.
+`Call` is safe for concurrent use: concurrent calls on the same `Compiled` are
+serialized internally. For true parallelism use `Clone()` and call on separate
+instances.
 
-**Limitations:**
-- All arguments must be expressible as pre-defined variables (see
-  [Type Conversion Table](#type-conversion-table)).
-- The function must be defined at the top level of the script.
-- For functions with multiple arguments, add one reserved variable per
-  argument slot.
+#### Compiled.CanCall(name string) bool
+
+`CanCall` returns `true` when `name` refers to a defined, callable global. Use
+it to guard `Call` when the script might not define a particular hook:
+
+```golang
+if compiled.CanCall("on_event") {
+    compiled.Call("on_event", payload)
+}
+```
+
+#### Compiled.CallContext(ctx, name, args...)
+
+`CallContext` is like `Call` but respects a `context.Context`. If the context
+is cancelled while the function is running the VM is aborted and the context
+error is returned:
+
+```golang
+ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+defer cancel()
+
+ret, err := compiled.CallContext(ctx, "heavy_compute", input)
+if errors.Is(err, context.DeadlineExceeded) {
+    // function took too long
+}
+```
 
 ### Exposing Go Functions to Tengo
 
@@ -245,18 +254,18 @@ s.Add("get_config", &tengo.UserFunction{
 })
 ```
 
-`tengo.ToInterface(obj)` performs the reverse conversion — from a
-`tengo.Object` back to a plain Go value — which is useful when passing
-Tengo values into existing Go APIs.
+`tengo.ToInterface(obj)` performs the reverse conversion from a
+`tengo.Object` back to a plain Go value, useful when passing Tengo values
+into existing Go APIs.
 
 #### Error handling conventions
 
 There are two ways to signal failure from a Go function:
 
-1. **Return a Go `error`** — the VM propagates it as a runtime error and
+1. **Return a Go `error`**: the VM propagates it as a runtime error and
    the script halts (unless the call is wrapped in a Tengo error-check).
 
-2. **Return a `*tengo.Error` object** — the function succeeds at the VM
+2. **Return a `*tengo.Error` object**: the function succeeds at the VM
    level but the script can inspect `result.is_error` or pattern-match on
    the returned value. This mirrors the Tengo idiom of returning `{ok,
    error}` pairs and is preferred when the failure is a domain error rather
@@ -286,7 +295,7 @@ return &tengo.Array{Value: []tengo.Object{
 ```
 
 ```tengo
-// In Tengo — index into the result:
+// In Tengo: index into the result:
 res := divmod(17, 5)
 q := res[0]
 r := res[1]
@@ -304,7 +313,7 @@ return &tengo.MultiValue{Values: []tengo.Object{
 ```
 
 ```tengo
-// In Tengo — destructures naturally:
+// In Tengo: destructures naturally:
 q, r := divmod(17, 5)
 ```
 
@@ -425,6 +434,46 @@ Sets the maximum length of bytes values. This limit applies to all running VM
 instances in the process. Also it's not recommended to set or update this value
 while any VM is executing.
 
+## Context and Cancellation
+
+`Script.RunContext` and `Compiled.RunContext` accept a `context.Context` and
+abort the VM when the context is cancelled or its deadline is exceeded. This is
+the simplest way to impose a wall-clock timeout on script execution.
+
+```golang
+import (
+    "context"
+    "time"
+
+    "github.com/tengolang/tengo/v3"
+)
+
+s := tengo.NewScript([]byte(`
+    n := 0
+    for { n++ }   // infinite loop
+`))
+
+ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+defer cancel()
+
+_, err := s.RunContext(ctx)
+// err == context.DeadlineExceeded after ~100 ms
+```
+
+The same method exists on `Compiled`:
+
+```golang
+compiled, _ := s.Compile()
+
+ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+defer cancel()
+
+err := compiled.RunContext(ctx)
+```
+
+`RunContext` aborts cleanly at the next instruction boundary; the script's
+global state is consistent up to the point of cancellation.
+
 ## Concurrency
 
 A compiled script (`Compiled`) can be used to run the code multiple
@@ -478,8 +527,8 @@ vm := tengo.NewVM(compiled.Bytecode(), compiled.Globals(), -1)
 ### VM.Pause()
 
 `Pause` signals the VM to stop after the current instruction completes.
-It is safe to call from any goroutine. The VM state is fully preserved —
-the instruction pointer, call stack, and all globals remain intact.
+It is safe to call from any goroutine. When it returns, the instruction
+pointer, call stack, and all globals remain intact.
 
 ```golang
 done := make(chan error, 1)
@@ -507,7 +556,7 @@ if vm.IsPaused() {
 ### VM.Resume()
 
 `Resume` clears the pause flag and continues execution from where it
-stopped. It must be called from the goroutine that owns the VM — i.e.
+stopped. It must be called from the goroutine that owns the VM, i.e.
 after `Run()` or a previous `Resume()` has returned. It returns the same
 kind of error as `Run()`.
 
@@ -603,7 +652,7 @@ The three mask constants:
 | `Event` | `HookEvent` | `HookCall`, `HookReturn`, or `HookLine` |
 | `Depth` | `int` | Call-stack depth (1 = script body, +1 per nested call) |
 | `Pos` | `parser.SourceFilePos` | Source position (filename, line, column) |
-| `RetVal` | `Object` | Return value — set only for `HookReturn`, nil otherwise |
+| `RetVal` | `Object` | Return value (set only for `HookReturn`, nil otherwise) |
 
 ### Performance
 

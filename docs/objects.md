@@ -196,7 +196,7 @@ These are the basic types Tengo runtime supports out of the box:
 - Primitive value types: [Int](https://pkg.go.dev/github.com/tengolang/tengo/v3#Int),
   [String](https://pkg.go.dev/github.com/tengolang/tengo/v3#String),
   [Float](https://pkg.go.dev/github.com/tengolang/tengo/v3#Float),
-  [Bool](https://pkg.go.dev/github.com/tengolang/tengo/v3#ArrayIterator),
+  [Bool](https://pkg.go.dev/github.com/tengolang/tengo/v3#Bool),
   [Char](https://pkg.go.dev/github.com/tengolang/tengo/v3#Char),
   [Bytes](https://pkg.go.dev/github.com/tengolang/tengo/v3#Bytes),
   [Time](https://pkg.go.dev/github.com/tengolang/tengo/v3#Time)

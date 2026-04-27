@@ -6,6 +6,8 @@
 
 - `(int) == (int) = (bool)`: equality
 - `(int) != (int) = (bool)`: inequality
+- `(int) == (float) = (bool)`: equality (int is converted to float for comparison)
+- `(int) != (float) = (bool)`: inequality
 
 ### Arithmetic Operators
 
@@ -51,6 +53,8 @@
 
 - `(float) == (float) = (bool)`: equality
 - `(float) != (float) = (bool)`: inequality
+- `(float) == (int) = (bool)`: equality (int is converted to float for comparison)
+- `(float) != (int) = (bool)`: inequality
 
 ### Arithmetic Operators
 

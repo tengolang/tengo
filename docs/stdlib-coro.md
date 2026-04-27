@@ -31,7 +31,7 @@ signature rather than hiding it behind language magic.
 - `.close()`: stops the coroutine. Any `yield` the coroutine is currently
   suspended at will unblock and the goroutine will exit. Calling `.close()` on a
   dead coroutine is a no-op.
-- `.status`: a string property — `"suspended"` while the coroutine has more
+- `.status`: a string property; `"suspended"` while the coroutine has more
   work to do, `"dead"` once it has finished or been closed.
 
 Coroutine objects are **iterable**: they can be used directly in `for-in`
@@ -229,7 +229,7 @@ sq.close()
 A more realistic pipeline shows what coroutines add over plain function calls:
 **each stage can be stateful**. The sliding-window stage below keeps its own
 rolling buffer; the deviation stage tracks nothing itself; the anomaly stage
-applies a threshold. None of them know about the others — they only speak
+applies a threshold. None of them know about the others; they only speak
 through coroutine handles.
 
 The data flows lazily: nothing moves until the final consumer asks for the
@@ -239,7 +239,7 @@ next record.
 coro := import("coro")
 fmt  := import("fmt")
 
-// Stage 1: raw sensor readings — index 7 is a spike
+// Stage 1: raw sensor readings (index 7 is a spike)
 source := func(yield) {
     data := [10, 11, 10, 12, 11, 10, 11, 45, 11, 10, 12, 11]
     for _, v in data {
@@ -311,7 +311,7 @@ anom.close()
 ## State machines
 
 Coroutines are a natural fit for anything with sequential phases. The current
-position in the function *is* the current state — no explicit state variable
+position in the function *is* the current state, with no explicit state variable
 needed.
 
 ```golang
@@ -354,7 +354,7 @@ bad := func(yield) {
 }
 
 co := coro.new(bad)
-co.resume()     // returns 1, true — fine so far
+co.resume()     // returns 1, true (fine so far)
 co.resume()     // runtime error surfaces here
 ```
 
@@ -363,7 +363,7 @@ co.resume()     // runtime error surfaces here
 ## The yield function
 
 `yield` is an ordinary function value. You can store it, pass it deeper, or
-call it from helper functions — whatever the code requires.
+call it from helper functions, whatever the code requires.
 
 ```golang
 coro := import("coro")
@@ -397,7 +397,7 @@ for v in coro.new(walk_tree, tree) {
 ## Concurrency note
 
 Each coroutine runs in its own Go goroutine, but only one side runs at a
-time — the parent is always blocked waiting for a yield while the coroutine
+time: the parent is always blocked waiting for a yield while the coroutine
 runs, and vice versa. This means shared global variables are safe to read and
 write from a coroutine without additional locking, as long as you do not run
 the same `Compiled` script concurrently from multiple Go goroutines.

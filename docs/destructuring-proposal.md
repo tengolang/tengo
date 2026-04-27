@@ -128,5 +128,5 @@ Compiler changes:
 - No new VM loop opcodes are strictly required (can reuse `OpIndex`), though
   a dedicated `OpGetField` would avoid repeated string-constant allocation.
 
-Complexity estimate: moderate — parser work is the bulk; VM changes are
+Complexity estimate: moderate. Parser work is the bulk; VM changes are
 minimal if `OpIndex` is reused.
