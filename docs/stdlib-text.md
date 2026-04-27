@@ -99,6 +99,9 @@ text := import("text")
   provided trailing suffix string.
 - `atoi(str string) => int/error`: returns the result of ParseInt(s, 10, 0)
   converted to type int.
+- `sprintf(format string, args...) => string`: formats according to a format
+  specifier and returns the resulting string. Equivalent to `fmt.sprintf` but
+  without any I/O dependency, safe to use in sandboxed environments.
 - `format_bool(b bool) => string`: returns "true" or "false" according to the
   value of b.
 - `format_float(f float, fmt string, prec int, bits int) => string`: converts

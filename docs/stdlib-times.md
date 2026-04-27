@@ -45,8 +45,6 @@ times := import("times")
 
 ## Functions
 
-- `sleep(duration int)`: pauses the current goroutine for at least the duration
-  d. A negative or zero duration causes Sleep to return immediately.
 - `parse_duration(s string) => int`: parses a duration string. A duration
   string is a possibly signed sequence of decimal numbers, each with optional
   fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m". Valid time

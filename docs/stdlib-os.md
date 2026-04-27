@@ -90,6 +90,8 @@ os := import("os")
   to newpath.
 - `setenv(key string, value string) => error`: sets the value of the
   environment variable named by the key.
+- `sleep(duration int)`: pauses the current goroutine for at least the given
+  duration (in nanoseconds). A negative or zero duration returns immediately.
 - `stat(filename string) => FileInfo/error`: returns a file info structure
   describing the file
 - `symlink(oldname string newname string) => error`: creates newname as a
