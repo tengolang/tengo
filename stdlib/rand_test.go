@@ -25,37 +25,41 @@ func readBytes(r *rand.Rand, p []byte) {
 }
 
 func TestRand(t *testing.T) {
+	// rand.new(seed) — reproducible, isolated instance
 	var seed int64 = 1234
 	r := rand.New(rand.NewSource(seed))
+	rnd := module(t, "rand").call("new", seed)
 
-	module(t, "rand").call("seed", seed).expect(tengo.UndefinedValue)
-	module(t, "rand").call("int").expect(r.Int63())
-	module(t, "rand").call("float").expect(r.Float64())
-	module(t, "rand").call("intn", 111).expect(r.Int63n(111))
-	module(t, "rand").call("exp_float").expect(r.ExpFloat64())
-	module(t, "rand").call("norm_float").expect(r.NormFloat64())
-	module(t, "rand").call("perm", 10).expect(r.Perm(10))
+	rnd.call("int").expect(r.Int63())
+	rnd.call("float").expect(r.Float64())
+	rnd.call("intn", 111).expect(r.Int63n(111))
+	rnd.call("exp_float").expect(r.ExpFloat64())
+	rnd.call("norm_float").expect(r.NormFloat64())
+	rnd.call("perm", 10).expect(r.Perm(10))
 
 	buf1 := make([]byte, 10)
 	buf2 := &tengo.Bytes{Value: make([]byte, 10)}
 	readBytes(r, buf1)
-	module(t, "rand").call("read", buf2).expect(len(buf1))
+	rnd.call("read", buf2).expect(len(buf1))
 	require.Equal(t, buf1, buf2.Value)
 
-	seed = 9191
-	r = rand.New(rand.NewSource(seed))
-	randObj := module(t, "rand").call("rand", seed)
-	randObj.call("seed", seed).expect(tengo.UndefinedValue)
-	randObj.call("int").expect(r.Int63())
-	randObj.call("float").expect(r.Float64())
-	randObj.call("intn", 111).expect(r.Int63n(111))
-	randObj.call("exp_float").expect(r.ExpFloat64())
-	randObj.call("norm_float").expect(r.NormFloat64())
-	randObj.call("perm", 10).expect(r.Perm(10))
+	// seed() on an instance resets its sequence
+	seed2 := int64(9191)
+	r2 := rand.New(rand.NewSource(seed2))
+	rnd.call("seed", seed2).expect(tengo.UndefinedValue)
+	rnd.call("int").expect(r2.Int63())
 
-	buf1 = make([]byte, 12)
-	buf2 = &tengo.Bytes{Value: make([]byte, 12)}
-	readBytes(r, buf1)
-	randObj.call("read", buf2).expect(len(buf1))
-	require.Equal(t, buf1, buf2.Value)
+	// rand.new() without seed — non-deterministic, just verify no error
+	module(t, "rand").call("new").noError()
+
+	// global functions — non-deterministic, smoke-test only
+	module(t, "rand").call("int").noError()
+	module(t, "rand").call("float").noError()
+	module(t, "rand").call("intn", 100).noError()
+	module(t, "rand").call("exp_float").noError()
+	module(t, "rand").call("norm_float").noError()
+	module(t, "rand").call("perm", 5).noError()
+
+	buf3 := &tengo.Bytes{Value: make([]byte, 8)}
+	module(t, "rand").call("read", buf3).expect(8)
 }

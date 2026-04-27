@@ -115,10 +115,6 @@ var randModule = map[string]tengo.Object{
 		Name:  "perm",
 		Value: FuncAIRIs(globalRand.perm),
 	},
-	"seed": &tengo.UserFunction{
-		Name:  "seed",
-		Value: FuncAI64R(globalRand.seed),
-	},
 	"read": &tengo.UserFunction{
 		Name: "read",
 		Value: func(args ...tengo.Object) (tengo.Object, error) {
@@ -136,21 +132,27 @@ var randModule = map[string]tengo.Object{
 			return tengo.Int{Value: int64(globalRand.read(y1.Value))}, nil
 		},
 	},
-	"rand": &tengo.UserFunction{
-		Name: "rand",
+	"new": &tengo.UserFunction{
+		Name: "new",
 		Value: func(args ...tengo.Object) (tengo.Object, error) {
-			if len(args) != 1 {
+			if len(args) > 1 {
 				return nil, tengo.ErrWrongNumArguments
 			}
-			i1, ok := tengo.ToInt64(args[0])
-			if !ok {
-				return nil, tengo.ErrInvalidArgumentType{
-					Name:     "first",
-					Expected: "int(compatible)",
-					Found:    args[0].TypeName(),
+			var src rand.Source
+			if len(args) == 1 {
+				i1, ok := tengo.ToInt64(args[0])
+				if !ok {
+					return nil, tengo.ErrInvalidArgumentType{
+						Name:     "first",
+						Expected: "int(compatible)",
+						Found:    args[0].TypeName(),
+					}
 				}
+				src = rand.NewSource(i1)
+			} else {
+				src = rand.NewSource(globalRand.int63())
 			}
-			return randRand(&seededRand{r: rand.New(rand.NewSource(i1))}), nil
+			return randRand(&seededRand{r: rand.New(src)}), nil //nolint:gosec
 		},
 	},
 }

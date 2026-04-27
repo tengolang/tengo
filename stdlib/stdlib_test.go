@@ -156,6 +156,10 @@ func (c callres) expectError() {
 	require.Error(c.t, c.e)
 }
 
+func (c callres) noError(msgAndArgs ...interface{}) {
+	require.NoError(c.t, c.e, msgAndArgs...)
+}
+
 func module(t *testing.T, moduleName string) callres {
 	mod := stdlib.GetModuleMap(moduleName).GetBuiltinModule(moduleName)
 	if mod == nil {
