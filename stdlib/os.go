@@ -336,7 +336,7 @@ func osArgs(args ...tengo.Object) (tengo.Object, error) {
 	if len(args) != 0 {
 		return nil, tengo.ErrWrongNumArguments
 	}
-	arr := &tengo.Array{}
+	arr := &tengo.Array{Value: make([]tengo.Object, 0, len(os.Args))}
 	for _, osArg := range os.Args {
 		if len(osArg) > tengo.MaxStringLen {
 			return nil, tengo.ErrStringLimit

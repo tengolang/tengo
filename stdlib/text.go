@@ -283,7 +283,7 @@ func textREFind(args ...tengo.Object) (ret tengo.Object, err error) {
 			return
 		}
 
-		arr := &tengo.Array{}
+		arr := &tengo.Array{Value: make([]tengo.Object, 0, len(m)/2)}
 		for i := 0; i < len(m); i += 2 {
 			if m[i] >= 0 && m[i+1] >= 0 {
 				arr.Value = append(arr.Value,
@@ -315,9 +315,9 @@ func textREFind(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	arr := &tengo.Array{}
+	arr := &tengo.Array{Value: make([]tengo.Object, 0, len(m))}
 	for _, m := range m {
-		subMatch := &tengo.Array{}
+		subMatch := &tengo.Array{Value: make([]tengo.Object, 0, len(m)/2)}
 		for i := 0; i < len(m); i += 2 {
 			if m[i] >= 0 && m[i+1] >= 0 {
 				subMatch.Value = append(subMatch.Value,
@@ -434,8 +434,9 @@ func textRESplit(args ...tengo.Object) (ret tengo.Object, err error) {
 		return
 	}
 
-	arr := &tengo.Array{}
-	for _, s := range re.Split(s2, i3) {
+	parts := re.Split(s2, i3)
+	arr := &tengo.Array{Value: make([]tengo.Object, 0, len(parts))}
+	for _, s := range parts {
 		arr.Value = append(arr.Value, &tengo.String{Value: s})
 	}
 
