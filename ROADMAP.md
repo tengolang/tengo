@@ -32,9 +32,10 @@
   `~/.tengo/modules/<version>/` makes sense once `tengo install` (#3) exists; before that
   it adds friction without benefit. Do after #3.
 
-- **#6 `tengo fmt`**
-  Requires the parser to emit a position-preserving AST and a printer. Non-trivial but the
-  parser already tracks positions. Natural fit as a separate binary alongside `tengo-man`.
+- **#6 `tengo fmt`** ✓ done
+  `format.Format(src)` in the `format` package; available as `tengo fmt`
+  subcommand and standalone `tengo-fmt` binary. Tab-indented, spaces around
+  operators, comment and blank-line preserving, idempotent.
 
 - **#4 Template module** ✓ done
   `template.text` and `template.html` (inline strings) plus `text_files`/`html_files`
@@ -62,10 +63,12 @@
   `maxAllocs` counts VM object allocations, not bytes. Real byte-level limits would require
   hooking into the GC or a custom allocator. Not straightforward in Go.
 
-- **#16 Error handling**
-  d5 was right that try/catch adds overhead and Go-style error values are preferred. The
-  existing `error` type + `is_error()` pattern works but is verbose. A `try(fn)` builtin
-  that recovers panics may be the smallest useful addition. Related: d5/tengo #161.
+- **#16 Error handling** — calling convention done
+  All stdlib functions that can fail now return `(value, error)` pairs. The old
+  single-return `result := fn(); is_error(result)` pattern is gone; callers use
+  `val, err := fn(); if is_error(err) { ... }`. Next: `must(v)` builtin to
+  propagate errors without an explicit check, and `try(fn)` for protected calls
+  that catch runtime panics. Related: d5/tengo #161.
 
 - **#12 True goroutine concurrency**
   d5 rejected a PR due to ~10% overhead on the normal (non-concurrent) path from locking.

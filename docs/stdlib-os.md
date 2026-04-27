@@ -44,6 +44,25 @@ os := import("os")
 - `path_list_separator`
 - `dev_null`
 
+## Error handling
+
+Functions that can fail return two values: the result and an error. Use
+multiple assignment to capture both:
+
+```golang
+data, err := os.read_file("config.json")
+if is_error(err) {
+    // handle error: err.value contains the message
+}
+```
+
+For functions with no meaningful return value, discard the first slot:
+
+```golang
+_, err := os.remove("tmp.txt")
+if is_error(err) { ... }
+```
+
 ## Functions
 
 - `args() => [string]`: returns command-line arguments, starting with the
@@ -66,15 +85,15 @@ os := import("os")
   variable named by the key.
 - `geteuid() => int`: returns the numeric effective user id of the caller.
 - `getgid() => int`: returns the numeric group id of the caller.
-- `getgroups() => [int]/error`: returns a list of the numeric ids of groups
+- `getgroups() => ([int], error)`: returns a list of the numeric ids of groups
   that the caller belongs to.
 - `getpagesize() => int`: returns the underlying system's memory page size.
 - `getpid() => int`: returns the process id of the caller.
 - `getppid() => int`: returns the process id of the caller's parent.
 - `getuid() => int`: returns the numeric user id of the caller.
-- `getwd() => string/error`: returns a rooted path name corresponding to the
+- `getwd() => (string, error)`: returns a rooted path name corresponding to the
   current directory.
-- `hostname() => string/error`: returns the host name reported by the kernel.
+- `hostname() => (string, error)`: returns the host name reported by the kernel.
 - `lchown(name string, uid int, gid int) => error`: changes the numeric uid
   and gid of the named file.
 - `link(oldname string, newname string) => error`: creates newname as a hard
@@ -84,10 +103,10 @@ os := import("os")
 - `mkdir(name string, perm int) => error`: creates a new directory with the
   specified name and permission bits (before umask).
 - `mkdir_all(name string, perm int) => error`: creates a directory named path,
-  along with any necessary parents, and returns nil, or else returns an error.
-- `read_file(name string) => bytes/error`: reads the contents of a file into
-  a byte array
-- `readlink(name string) => string/error`: returns the destination of the
+  along with any necessary parents.
+- `read_file(name string) => (bytes, error)`: reads the contents of a file into
+  a byte array.
+- `readlink(name string) => (string, error)`: returns the destination of the
   named symbolic link.
 - `remove(name string) => error`: removes the named file or (empty) directory.
 - `remove_all(name string) => error`: removes path and any children it
@@ -98,82 +117,83 @@ os := import("os")
   environment variable named by the key.
 - `sleep(duration int)`: pauses the current goroutine for at least the given
   duration (in nanoseconds). A negative or zero duration returns immediately.
-- `stat(filename string) => FileInfo/error`: returns a file info structure
-  describing the file
-- `symlink(oldname string newname string) => error`: creates newname as a
+- `stat(filename string) => (FileInfo, error)`: returns a file info structure
+  describing the file.
+- `symlink(oldname string, newname string) => error`: creates newname as a
   symbolic link to oldname.
 - `temp_dir() => string`: returns the default directory to use for temporary
   files.
 - `truncate(name string, size int) => error`: changes the size of the named
   file.
 - `unsetenv(key string) => error`: unsets a single environment variable.
-- `create(name string) => File/error`: creates the named file with mode 0666
+- `create(name string) => (File, error)`: creates the named file with mode 0666
   (before umask), truncating it if it already exists.
-- `open(name string) => File/error`: opens the named file for reading. If
+- `open(name string) => (File, error)`: opens the named file for reading. If
   successful, methods on the returned file can be used for reading; the
   associated file descriptor has mode O_RDONLY.
-- `open_file(name string, flag int, perm int) => File/error`: is the
-  generalized open call; most users will use Open or Create instead. It opens
+- `open_file(name string, flag int, perm int) => (File, error)`: is the
+  generalized open call; most users will use open or create instead. It opens
   the named file with specified flag (O_RDONLY etc.) and perm (before umask),
   if applicable.
-- `find_process(pid int) => Process/error`: looks for a running process by its
-  pid.
-- `start_process(name string, argv [string], dir string, env [string]) => Process/error`:
+- `find_process(pid int) => (Process, error)`: looks for a running process by
+  its pid.
+- `start_process(name string, argv [string], dir string, env [string]) => (Process, error)`:
   starts a new process with the program, arguments and attributes specified by
   name, argv and attr. The argv slice will become os.Args in the new process,
   so it normally starts with the program name.
-- `exec_look_path(file string) => string/error`: searches for an executable
+- `exec_look_path(file string) => (string, error)`: searches for an executable
   named file in the directories named by the PATH environment variable.
-- `exec(name string, args...) => Command/error`: returns the Command to execute
-  the named program with the given arguments.
+- `exec(name string, args...) => Command`: returns the Command struct to
+  execute the named program with the given arguments.
 
 ## File
 
 ```golang
-file := os.create("myfile")
-file.write_string("some data")
-file.close()
+file, err := os.create("myfile")
+if is_error(err) { /* handle */ }
+_, err = file.write_string("some data")
+_, err = file.close()
 ```
 
-- `chdir() => true/error`: changes the current working directory to the file,
-- `chown(uid int, gid int) => true/error`: changes the numeric uid and gid of
+- `chdir() => error`: changes the current working directory to the file.
+- `chown(uid int, gid int) => error`: changes the numeric uid and gid of
   the named file.
 - `close() => error`: closes the File, rendering it unusable for I/O.
-- `name() => string`: returns the name of the file as presented to Open.
-- `readdirnames(n int) => [string]/error`: reads and returns a slice of names
+- `name() => string`: returns the name of the file as presented to open.
+- `readdirnames(n int) => ([string], error)`: reads and returns a slice of names
   from the directory.
 - `sync() => error`: commits the current contents of the file to stable storage.
-- `write(bytes) => int/error`: writes len(b) bytes to the File.
-- `write_string(string) => int/error`: is like 'write', but writes the contents
-  of string s rather than a slice of bytes.
-- `read(bytes) => int/error`: reads up to len(b) bytes from the File.
-- `stat() => FileInfo/error`: returns a file info structure describing the file
+- `write(bytes) => (int, error)`: writes len(b) bytes to the File.
+- `write_string(string) => (int, error)`: like write, but accepts a string.
+- `read(bytes) => (int, error)`: reads up to len(b) bytes from the File.
+- `stat() => (FileInfo, error)`: returns a file info structure describing the file.
 - `chmod(mode int) => error`: changes the mode of the file to mode.
-- `seek(offset int, whence int) => int/error`: sets the offset for the next
-  Read or Write on file to offset, interpreted according to whence: 0 means
+- `seek(offset int, whence int) => (int, error)`: sets the offset for the next
+  read or write on file to offset, interpreted according to whence: 0 means
   relative to the origin of the file, 1 means relative to the current offset,
   and 2 means relative to the end.
 
 ## Process
 
 ```golang
-proc := start_process("app", ["arg1", "arg2"], "dir", [])
-proc.wait()
+proc, err := os.start_process("app", ["arg1", "arg2"], "dir", [])
+if is_error(err) { /* handle */ }
+state, err := proc.wait()
 ```
 
 - `kill() => error`: causes the Process to exit immediately.
 - `release() => error`: releases any resources associated with the process,
   rendering it unusable in the future.
 - `signal(signal int) => error`: sends a signal to the Process.
-- `wait() => ProcessState/error`: waits for the Process to exit, and then
-  returns a ProcessState describing its status and an error, if any.
+- `wait() => (ProcessState, error)`: waits for the Process to exit and returns
+  a ProcessState describing its status.
 
 ## ProcessState
 
 ```golang
-proc := start_process("app", ["arg1", "arg2"], "dir", [])
-stat := proc.wait()
-pid := stat.pid()
+proc, _ := os.start_process("app", ["arg1", "arg2"], "dir", [])
+state, _ := proc.wait()
+pid := state.pid()
 ```
 
 - `exited() => bool`: reports whether the program has exited.
@@ -183,8 +203,8 @@ pid := stat.pid()
   with exit status 0 on Unix.
 
 ```golang
-cmd := exec.command("echo", ["foo", "bar"])
-output := cmd.output()
+cmd := os.exec("echo", "foo", "bar")
+out, err := cmd.output()
 ```
 
 ## FileInfo
@@ -197,9 +217,9 @@ output := cmd.output()
 
 ## Command
 
-- `combined_output() => bytes/error`: runs the command and returns its combined
-  standard output and standard error.
-- `output() => bytes/error`: runs the command and returns its standard output.
+- `combined_output() => (bytes, error)`: runs the command and returns its
+  combined standard output and standard error.
+- `output() => (bytes, error)`: runs the command and returns its standard output.
 - `run() => error`: starts the specified command and waits for it to complete.
 - `start() => error`: starts the specified command but does not wait for it to
   complete.
