@@ -18,6 +18,14 @@
   `ArgCount`, `ArgString`, `ArgInt`, `ArgFloat`, `ArgBool`, `ArgBytes`, `ArgTime`
   exported from the `tengo` package in `args.go`.
 
+- **#8 Array append / memory fix (d5/tengo #410)** ✓ done
+  Pre-allocation applied across `os`, `text`, and `text_regexp` stdlib modules.
+
+- **Sandbox-safe stdlib** ✓ done
+  `sleep` moved from `times` to `os`. `text.sprintf` added as an I/O-free
+  alternative to `fmt.sprintf`. `rand.seed()` replaced by `rand.new(seed?)`
+  for isolated, non-interfering random state.
+
 ## Medium effort
 
 - **#2 Version-based module directory**
@@ -34,16 +42,14 @@
 - **#9 HTTP module**
   Plugin module in `tengo-modules`. Start with an HTTP client; server-side needs more design.
 
-- **#8 Array append / memory fix (d5/tengo #410)** ✓ done
-  Pre-allocation applied across `os`, `text`, and `text_regexp` stdlib modules.
-
 - **#15 Crypto module**
   Plugin module in `tengo-modules`: sha256, hmac, aes. Clearly not stdlib material,
   clearly useful.
 
-- **#11 Module method blacklisting**
-  A `FilteredModule` wrapper that strips specific keys from a `map[string]Object` before
-  registration. Implementable without VM changes and directly useful for sandboxing.
+- **#11 Module method blacklisting** — reconsidered, won't do
+  The sandbox concerns it was meant to address are now handled structurally:
+  `sleep` is in `os`, `rand.seed()` is gone, `fmt.print*` can be omitted by
+  not registering `fmt`. A generic filter adds complexity without clear benefit.
 
 ## Needs design work
 
@@ -66,9 +72,9 @@
   change with ongoing maintenance cost; low priority unless a concrete use case drives it.
 
 - **#5 Server-side scripting / CGI**
-  Tengo can already be embedded in an HTTP handler. Full CGI support needs #14
-  (stdin/stdout/stderr) first, then a thin CGI wrapper. FastCGI is more realistic than
-  classic CGI.
+  Tengo can already be embedded in an HTTP handler. Full CGI support now has
+  `os.stdin`/`os.stdout`/`os.stderr` (#14 done); next step is a thin CGI wrapper.
+  FastCGI is more realistic than classic CGI.
 
 ## Separate projects
 
@@ -89,8 +95,6 @@
 
 ## Notes
 
-- **#11 method blacklisting** and **#14 stdin/stdout/stderr** are the most immediately
-  relevant for anyone running Tengo in a sandboxed / user-script context.
 - The plugin build constraint (same Go toolchain + same `tengo` version) is an infra
   question; a CI job that builds and publishes matching `tengo` binary + plugin `.so`
   pairs per release is the right long-term answer for #3.
