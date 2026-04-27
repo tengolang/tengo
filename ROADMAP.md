@@ -32,9 +32,10 @@
   `~/.tengo/modules/<version>/` makes sense once `tengo install` (#3) exists; before that
   it adds friction without benefit. Do after #3.
 
-- **#6 `tengo fmt`**
-  Requires the parser to emit a position-preserving AST and a printer. Non-trivial but the
-  parser already tracks positions. Natural fit as a separate binary alongside `tengo-man`.
+- **#6 `tengo fmt`** ✓ done
+  `format.Format(src)` in the `format` package; available as `tengo fmt`
+  subcommand and standalone `tengo-fmt` binary. Tab-indented, spaces around
+  operators, comment and blank-line preserving, idempotent.
 
 - **#4 Template module** ✓ done
   `template.text` and `template.html` (inline strings) plus `text_files`/`html_files`
