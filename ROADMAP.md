@@ -36,15 +36,16 @@
   Requires the parser to emit a position-preserving AST and a printer. Non-trivial but the
   parser already tracks positions. Natural fit as a separate binary alongside `tengo-man`.
 
-- **#4 Template module**
-  Go's `text/template` and `html/template` as a plugin module in `tengo-modules`. Clean fit.
+- **#4 Template module** ✓ done
+  `template.text` and `template.html` (inline strings) plus `text_files`/`html_files`
+  (glob patterns) in `tengo-modules`.
 
-- **#9 HTTP module**
-  Plugin module in `tengo-modules`. Start with an HTTP client; server-side needs more design.
+- **#9 HTTP module** ✓ done
+  `http.get`, `http.post`, `http.request` with response map in `tengo-modules`.
 
-- **#15 Crypto module**
-  Plugin module in `tengo-modules`: sha256, hmac, aes. Clearly not stdlib material,
-  clearly useful.
+- **#15 Crypto module** ✓ done
+  `crypto.sha256`, `sha512`, `hmac_sha256` (raw + hex), `aes_encrypt`/`aes_decrypt`
+  (AES-GCM) in `tengo-modules`.
 
 - **#11 Module method blacklisting** — reconsidered, won't do
   The sandbox concerns it was meant to address are now handled structurally:
