@@ -8,6 +8,7 @@ package buildinfo
 
 import (
 	"fmt"
+	"runtime"
 	"runtime/debug"
 	"strings"
 )
@@ -52,13 +53,14 @@ func Version() string {
 
 	if isDev {
 		// go run or build outside a module tag — show git detail if available.
+		goVer := runtime.Version()
 		switch {
 		case commit != "" && dirty != "":
-			return fmt.Sprintf("dev (git: %s, %s)", commit, dirty)
+			return fmt.Sprintf("dev (git: %s, dirty, %s)", commit, goVer)
 		case commit != "":
-			return fmt.Sprintf("dev (git: %s)", commit)
+			return fmt.Sprintf("dev (git: %s, %s)", commit, goVer)
 		default:
-			return "dev"
+			return fmt.Sprintf("dev (%s)", goVer)
 		}
 	}
 
@@ -67,7 +69,7 @@ func Version() string {
 	v = strings.TrimSuffix(v, "+dirty")
 
 	if dirty != "" {
-		return v + " (dirty)"
+		return v + " (dirty, " + runtime.Version() + ")"
 	}
-	return v
+	return v + " (" + runtime.Version() + ")"
 }
