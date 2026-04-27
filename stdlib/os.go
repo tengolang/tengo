@@ -41,6 +41,9 @@ var osModule = map[string]tengo.Object{
 	"seek_set":            tengo.Int{Value: int64(io.SeekStart)},
 	"seek_cur":            tengo.Int{Value: int64(io.SeekCurrent)},
 	"seek_end":            tengo.Int{Value: int64(io.SeekEnd)},
+	"stdin":  makeOSFile(os.Stdin),
+	"stdout": makeOSFile(os.Stdout),
+	"stderr": makeOSFile(os.Stderr),
 	"args": &tengo.UserFunction{
 		Name:  "args",
 		Value: osArgs,
