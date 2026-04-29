@@ -42,6 +42,7 @@ var (
 	showHelp      bool
 	showVersion   bool
 	resolvePath   bool // TODO Remove this flag at version 3
+	moduleMode    bool
 )
 
 func init() {
@@ -51,6 +52,8 @@ func init() {
 	flag.BoolVar(&showVersion, "version", false, "Show version")
 	flag.BoolVar(&resolvePath, "resolve", false,
 		"Resolve relative import paths")
+	flag.BoolVar(&moduleMode, "module", false,
+		"Compile as an importable module (honours export statement)")
 	flag.Parse()
 }
 
@@ -130,13 +133,20 @@ func main() {
 }
 
 // CompileOnly compiles the source code and writes the compiled binary into
-// outputFile.
+// outputFile. When the global moduleMode flag is set the file is compiled
+// with module semantics so that import() can later load it.
 func CompileOnly(
 	modules *tengo.ModuleMap,
 	data []byte,
 	inputFile, outputFile string,
 ) (err error) {
-	bytecode, err := compileSrc(modules, data, inputFile)
+	var bytecode *tengo.Bytecode
+	if moduleMode {
+		bytecode, err = tengo.CompileModuleSrc(
+			filepath.Base(inputFile), data, modules)
+	} else {
+		bytecode, err = compileSrc(modules, data, inputFile)
+	}
 	if err != nil {
 		return
 	}

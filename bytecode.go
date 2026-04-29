@@ -1,6 +1,7 @@
 package tengo
 
 import (
+	"bytes"
 	"encoding/gob"
 	"fmt"
 	"io"
@@ -8,6 +9,14 @@ import (
 
 	"github.com/tengolang/tengo/v3/parser"
 )
+
+// bytecodeMagic is written as the first four bytes of every encoded Bytecode
+// file. The leading ESC byte (0x1B) is never valid at the start of a UTF-8
+// Tengo source file, so the presence of these bytes unambiguously identifies
+// a compiled binary rather than source code.
+//
+// Layout: ESC 'T' 'n' 'g'
+var bytecodeMagic = [4]byte{0x1B, 'T', 'n', 'g'}
 
 // Bytecode is a compiled instructions and constants.
 type Bytecode struct {
@@ -35,8 +44,12 @@ func (b *Bytecode) Clone() *Bytecode {
 	}
 }
 
-// Encode writes Bytecode data to the writer.
+// Encode writes Bytecode data to the writer, prefixed by the four-byte
+// bytecodeMagic header so consumers can quickly identify compiled files.
 func (b *Bytecode) Encode(w io.Writer) error {
+	if _, err := w.Write(bytecodeMagic[:]); err != nil {
+		return err
+	}
 	enc := gob.NewEncoder(w)
 	if err := enc.Encode(b.FileSet); err != nil {
 		return err
@@ -45,6 +58,14 @@ func (b *Bytecode) Encode(w io.Writer) error {
 		return err
 	}
 	return enc.Encode(b.Constants)
+}
+
+// IsBytecodeData reports whether data begins with the Tengo bytecode magic
+// header. Use this to distinguish compiled files from Tengo source before
+// attempting a full Decode.
+func IsBytecodeData(data []byte) bool {
+	return len(data) >= len(bytecodeMagic) &&
+		bytes.Equal(data[:len(bytecodeMagic)], bytecodeMagic[:])
 }
 
 // CountObjects returns the number of objects found in Constants.
@@ -106,9 +127,23 @@ func (b *Bytecode) ReplaceBuiltinModule(name string, attrs map[string]Object) {
 // Decode reads Bytecode data from the reader.
 // Must only be called before the Bytecode is handed to any VM or Compiled
 // instance. Calling Decode on a Bytecode that is already in use is a data race.
+//
+// Files produced by Encode carry a four-byte magic header; Decode strips it
+// automatically. Legacy files compiled before the magic header was introduced
+// are also accepted for backward compatibility.
 func (b *Bytecode) Decode(r io.Reader, modules *ModuleMap) error {
 	if modules == nil {
 		modules = NewModuleMap()
+	}
+
+	// Read the first four bytes to check for the magic header.
+	header := make([]byte, len(bytecodeMagic))
+	if _, err := io.ReadFull(r, header); err != nil {
+		return err
+	}
+	if !bytes.Equal(header, bytecodeMagic[:]) {
+		// Legacy file: prepend the already-consumed bytes back into the stream.
+		r = io.MultiReader(bytes.NewReader(header), r)
 	}
 
 	dec := gob.NewDecoder(r)
