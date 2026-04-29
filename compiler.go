@@ -1,6 +1,7 @@
 package tengo
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -591,23 +592,43 @@ func (c *Compiler) Compile(node parser.Node) error {
 					err.Error())
 			}
 
-			var moduleSrc []byte
+			var moduleData []byte
 			if c.importFS != nil {
-				moduleSrc, err = fs.ReadFile(c.importFS, modulePath)
+				moduleData, err = fs.ReadFile(c.importFS, modulePath)
 			} else {
-				moduleSrc, err = os.ReadFile(modulePath)
+				moduleData, err = os.ReadFile(modulePath)
 			}
 			if err != nil {
 				return c.errorf(node, "module file read error: %s",
 					err.Error())
 			}
 
-			compiled, err := c.compileModule(node, modulePath, moduleSrc, true)
-			if err != nil {
-				return err
+			// IsBytecodeData checks the magic header — reliable and instant.
+			// If the file is compiled bytecode, load it directly; otherwise
+			// compile the bytes as Tengo source (existing behaviour).
+			if IsBytecodeData(moduleData) {
+				bc := &Bytecode{}
+				var mm *ModuleMap
+				if m, ok := c.modules.(*ModuleMap); ok {
+					mm = m
+				}
+				if err = bc.Decode(bytes.NewReader(moduleData), mm); err != nil {
+					return c.errorf(node, "module bytecode decode error: %s", err.Error())
+				}
+				compiled, err := c.importCompiledModule(node, modulePath, bc)
+				if err != nil {
+					return err
+				}
+				c.emit(node, parser.OpConstant, c.addConstant(compiled))
+				c.emit(node, parser.OpCall, 0, 0)
+			} else {
+				compiled, err := c.compileModule(node, modulePath, moduleData, true)
+				if err != nil {
+					return err
+				}
+				c.emit(node, parser.OpConstant, c.addConstant(compiled))
+				c.emit(node, parser.OpCall, 0, 0)
 			}
-			c.emit(node, parser.OpConstant, c.addConstant(compiled))
-			c.emit(node, parser.OpCall, 0, 0)
 		} else {
 			return c.errorf(node, "module '%s' not found", node.ModuleName)
 		}
@@ -726,6 +747,64 @@ func (c *Compiler) GetImportFileExt() []string {
 // EnableFileImport is not required.
 func (c *Compiler) SetImportFS(fsys fs.FS) {
 	c.importFS = fsys
+}
+
+// CompileModuleSrc compiles src as an importable module rather than a
+// standalone script. The key difference from a plain Compile call is that
+// the export statement is honoured: the resulting Bytecode contains a
+// callable MainFunction whose return value is the exported object.
+//
+// The returned Bytecode is suitable for encoding to disk and later loading
+// via import(), provided the file is found by the import path resolver.
+// Use the -module flag on the tengo CLI to produce such files.
+func CompileModuleSrc(
+	name string,
+	src []byte,
+	modules ModuleGetter,
+) (*Bytecode, error) {
+	if modules == nil {
+		modules = NewModuleMap()
+	}
+
+	fileSet := parser.NewFileSet()
+
+	// A synthetic root compiler owns the constants pool and acts as the
+	// parent, which causes the export statement to be compiled rather than
+	// silently dropped (the compiler skips export when c.parent == nil).
+	rootFile := fileSet.AddFile("(module-root)", -1, 0)
+	root := NewCompiler(rootFile, nil, nil, modules, nil)
+
+	modFile := fileSet.AddFile(name, -1, len(src))
+	p := parser.NewParser(modFile, src, nil)
+	file, err := p.ParseFile()
+	if err != nil {
+		return nil, err
+	}
+
+	// Inherit builtins and create a module-level (non-global) scope.
+	symbolTable := NewSymbolTable()
+	for _, sym := range root.symbolTable.BuiltinSymbols() {
+		symbolTable.DefineBuiltin(sym.Index, sym.Name)
+	}
+	symbolTable = symbolTable.Fork(false)
+
+	modCompiler := root.fork(modFile, name, symbolTable, false)
+	modCompiler.allowFileImport = true
+	modCompiler.importDir = filepath.Dir(name)
+
+	if err := modCompiler.Compile(file); err != nil {
+		return nil, err
+	}
+	modCompiler.optimizeFunc(nil)
+
+	fn := modCompiler.Bytecode().MainFunction
+	fn.NumLocals = symbolTable.MaxSymbols()
+
+	return &Bytecode{
+		FileSet:      fileSet,
+		MainFunction: fn,
+		Constants:    root.constants,
+	}, nil
 }
 
 func (c *Compiler) compileAssign(
@@ -1821,7 +1900,93 @@ func (c *Compiler) printTrace(a ...interface{}) {
 	_, _ = fmt.Fprintln(c.trace, a...)
 }
 
+// rootCompiler returns the top-level compiler in the parent chain.
+func (c *Compiler) rootCompiler() *Compiler {
+	if c.parent != nil {
+		return c.parent.rootCompiler()
+	}
+	return c
+}
+
+// rootConstantsLen returns the current length of the root compiler's constants
+// pool. Used as the rebase offset when merging a decoded module's constants.
+func (c *Compiler) rootConstantsLen() int {
+	return len(c.rootCompiler().constants)
+}
+
+// rebaseInstructions returns a copy of insts with every constant-pool
+// reference (OpConstant and OpClosure) shifted up by offset. Instruction
+// sizes are unchanged so SourceMaps remain valid.
+func rebaseInstructions(insts []byte, offset int) []byte {
+	out := make([]byte, len(insts))
+	copy(out, insts)
+	if offset == 0 {
+		return out
+	}
+	iterateInstructions(out, func(pos int, opcode parser.Opcode, operands []int) bool {
+		switch opcode {
+		case parser.OpConstant:
+			copy(out[pos:], MakeInstruction(parser.OpConstant, operands[0]+offset))
+		case parser.OpClosure:
+			// operands[0] = constant index, operands[1] = free variable count
+			copy(out[pos:], MakeInstruction(parser.OpClosure, operands[0]+offset, operands[1]))
+		}
+		return true
+	})
+	return out
+}
+
+// importCompiledModule integrates a decoded Bytecode into the current
+// compilation by appending its constants to the root pool and rebasing all
+// OpConstant references so they point into the merged pool.
+//
+// This is the compiled-module counterpart to compileModule: both return a
+// *CompiledFunction that is emitted as OpConstant + OpCall at the import site.
+func (c *Compiler) importCompiledModule(
+	node parser.Node,
+	modulePath string,
+	bc *Bytecode,
+) (*CompiledFunction, error) {
+	if err := c.checkCyclicImports(node, modulePath); err != nil {
+		return nil, err
+	}
+	if compiled, exists := c.loadCompiledModule(modulePath); exists {
+		return compiled, nil
+	}
+
+	// offset is the index in the root pool at which bc's constants will start.
+	offset := c.rootConstantsLen()
+
+	// Append bc's constants to the root pool.
+	for _, obj := range bc.Constants {
+		c.addConstant(obj)
+	}
+
+	// Remap OpConstant in every CompiledFunction that was just appended.
+	// They still reference zero-based indices into bc.Constants; after
+	// rebasing they reference the correct positions in the merged pool.
+	root := c.rootCompiler()
+	for i := offset; i < len(root.constants); i++ {
+		if fn, ok := root.constants[i].(*CompiledFunction); ok {
+			fn.Instructions = rebaseInstructions(fn.Instructions, offset)
+		}
+	}
+
+	// Build the entry-point function with rebased instructions.
+	main := &CompiledFunction{
+		Instructions:  rebaseInstructions(bc.MainFunction.Instructions, offset),
+		NumLocals:     bc.MainFunction.NumLocals,
+		NumParameters: bc.MainFunction.NumParameters,
+		VarArgs:       bc.MainFunction.VarArgs,
+		SourceMap:     bc.MainFunction.SourceMap,
+	}
+
+	c.storeCompiledModule(modulePath, main)
+	return main, nil
+}
+
 func (c *Compiler) getPathModule(moduleName string) (pathFile string, err error) {
+	// 1. Search for source modules using the registered source extensions.
 	for _, ext := range c.importFileExt {
 		nameFile := moduleName
 
@@ -1848,6 +2013,45 @@ func (c *Compiler) getPathModule(moduleName string) (pathFile string, err error)
 		// Check if file exists
 		if _, err := os.Stat(pathFile); !errors.Is(err, os.ErrNotExist) {
 			return pathFile, nil
+		}
+	}
+
+	// 2. Search for pre-compiled modules. Two cases are covered:
+	//    a) import("mod")      → also tries mod.out
+	//    b) import("mod.out")  → tries mod.out directly (non-source extension)
+	//    b) import("mod.so")   → tries mod.so directly (non-source extension)
+	ext := path.Ext(moduleName)
+	isSourceExt := false
+	for _, e := range c.importFileExt {
+		if ext == e {
+			isSourceExt = true
+			break
+		}
+	}
+
+	var candidates []string
+	if ext == "" {
+		// No extension: try the standard compiled output extension.
+		candidates = []string{moduleName + ".out"}
+	} else if !isSourceExt {
+		// Non-source extension present: try the name as-is.
+		candidates = []string{moduleName}
+	}
+
+	for _, candidate := range candidates {
+		if c.importFS != nil {
+			resolved := path.Clean(path.Join(c.importDir, candidate))
+			if _, serr := fs.Stat(c.importFS, resolved); serr == nil {
+				return resolved, nil
+			}
+			continue
+		}
+		p, ferr := filepath.Abs(filepath.Join(c.importDir, candidate))
+		if ferr != nil {
+			continue
+		}
+		if _, ferr := os.Stat(p); !errors.Is(ferr, os.ErrNotExist) {
+			return p, nil
 		}
 	}
 
