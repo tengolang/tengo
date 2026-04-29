@@ -17,7 +17,24 @@ import (
 // Layout: ESC 'T' 'n' 'g'
 var bytecodeMagic = [4]byte{0x1B, 'T', 'n', 'g'}
 
-// BytecodeKind is the fifth header byte and records how the file was compiled.
+// bytecodeHeaderLen is the total length of the fixed file header.
+const bytecodeHeaderLen = 8
+
+// bytecodeHeaderOffsets records the byte position of each header field.
+const (
+	hdrOffVersion  = 4 // format version
+	hdrOffKind     = 5 // BytecodeKind
+	hdrOffReserved = 6 // two reserved bytes (must be zero)
+)
+
+// BytecodeFormatVersion is the format version written into every new file.
+// Increment this when the serialised layout changes in a backward-incompatible
+// way so that Decode can reject stale files with a clear error instead of
+// silently producing corrupt state.
+const BytecodeFormatVersion byte = 0x01
+
+// BytecodeKind is the kind byte in the file header and records how the file
+// was compiled.
 type BytecodeKind byte
 
 const (
@@ -73,7 +90,11 @@ func (b *Bytecode) EncodeModule(w io.Writer) error {
 }
 
 func (b *Bytecode) encode(w io.Writer, kind BytecodeKind) error {
-	header := [5]byte{bytecodeMagic[0], bytecodeMagic[1], bytecodeMagic[2], bytecodeMagic[3], byte(kind)}
+	var header [bytecodeHeaderLen]byte
+	copy(header[:4], bytecodeMagic[:])
+	header[hdrOffVersion] = BytecodeFormatVersion
+	header[hdrOffKind] = byte(kind)
+	// bytes 6–7 are reserved and remain zero
 	if _, err := w.Write(header[:]); err != nil {
 		return err
 	}
@@ -95,12 +116,22 @@ func IsBytecodeData(data []byte) bool {
 		bytes.Equal(data[:len(bytecodeMagic)], bytecodeMagic[:])
 }
 
+// BytecodeDataVersion returns the format version from the header of data
+// produced by Encode or EncodeModule. It returns 0 for legacy files that
+// pre-date the versioned header.
+func BytecodeDataVersion(data []byte) byte {
+	if IsBytecodeData(data) && len(data) > hdrOffVersion {
+		return data[hdrOffVersion]
+	}
+	return 0
+}
+
 // BytecodeDataKind returns the kind byte from data produced by Encode or
-// EncodeModule. It returns BytecodeKindScript for legacy files that have no
-// kind byte (only the four-byte magic).
+// EncodeModule. It returns BytecodeKindScript for legacy files that pre-date
+// the versioned header.
 func BytecodeDataKind(data []byte) BytecodeKind {
-	if len(data) >= 5 {
-		return BytecodeKind(data[4])
+	if IsBytecodeData(data) && len(data) > hdrOffKind {
+		return BytecodeKind(data[hdrOffKind])
 	}
 	return BytecodeKindScript
 }
@@ -165,31 +196,37 @@ func (b *Bytecode) ReplaceBuiltinModule(name string, attrs map[string]Object) {
 // Must only be called before the Bytecode is handed to any VM or Compiled
 // instance. Calling Decode on a Bytecode that is already in use is a data race.
 //
-// Files produced by Encode/EncodeModule carry a five-byte header (four magic
-// bytes + kind byte); Decode strips it automatically. Legacy files compiled
-// before the header was introduced are also accepted for backward
-// compatibility.
+// Three header generations are handled transparently:
+//
+//   - Current (8-byte): magic(4) + version(1) + kind(1) + reserved(2)
+//   - Previous (5-byte): magic(4) + kind(1)   — no version, no reserved
+//   - Legacy  (0-byte): no header at all       — raw gob from before headers
 func (b *Bytecode) Decode(r io.Reader, modules *ModuleMap) error {
 	if modules == nil {
 		modules = NewModuleMap()
 	}
 
-	// Read up to five bytes to check for the magic header and kind byte.
-	header := make([]byte, 5)
+	// Read up to bytecodeHeaderLen bytes to inspect the header. ReadFull
+	// returns io.ErrUnexpectedEOF when the stream is shorter; that is fine
+	// for legacy files and is handled below.
+	header := make([]byte, bytecodeHeaderLen)
 	n, err := io.ReadFull(r, header)
 	if err != nil && err != io.ErrUnexpectedEOF {
 		return err
 	}
 	header = header[:n]
 
-	if n >= 4 && bytes.Equal(header[:4], bytecodeMagic[:]) {
-		// Current format: consume the kind byte (header[4]) and continue.
-		// Any bytes beyond the 5-byte header belong to the gob stream.
-		if n > 5 {
-			r = io.MultiReader(bytes.NewReader(header[5:]), r)
-		}
-	} else {
-		// Legacy file without magic header: push all consumed bytes back.
+	switch {
+	case n >= bytecodeHeaderLen && bytes.Equal(header[:4], bytecodeMagic[:]):
+		// Current 8-byte header — all bytes consumed, nothing to push back.
+
+	case n >= 5 && bytes.Equal(header[:4], bytecodeMagic[:]):
+		// Previous 5-byte header (magic + kind, no version/reserved).
+		// The bytes beyond position 5 are part of the gob stream.
+		r = io.MultiReader(bytes.NewReader(header[5:]), r)
+
+	default:
+		// Legacy file with no header — push every byte read back.
 		r = io.MultiReader(bytes.NewReader(header), r)
 	}
 
