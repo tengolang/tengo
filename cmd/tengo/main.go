@@ -167,7 +167,11 @@ func CompileOnly(
 		}
 	}()
 
-	err = bytecode.Encode(out)
+	if moduleMode {
+		err = bytecode.EncodeModule(out)
+	} else {
+		err = bytecode.Encode(out)
+	}
 	if err != nil {
 		return
 	}
