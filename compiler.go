@@ -607,6 +607,12 @@ func (c *Compiler) Compile(node parser.Node) error {
 			// If the file is compiled bytecode, load it directly; otherwise
 			// compile the bytes as Tengo source (existing behaviour).
 			if IsBytecodeData(moduleData) {
+				if BytecodeDataKind(moduleData) != BytecodeKindModule {
+					return c.errorf(node,
+						"cannot import '%s': file was compiled as a script, not a module; "+
+							"recompile with the -module flag",
+						node.ModuleName)
+				}
 				bc := &Bytecode{}
 				var mm *ModuleMap
 				if m, ok := c.modules.(*ModuleMap); ok {

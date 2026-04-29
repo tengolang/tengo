@@ -10,13 +10,25 @@ import (
 	"github.com/tengolang/tengo/v3/parser"
 )
 
-// bytecodeMagic is written as the first four bytes of every encoded Bytecode
-// file. The leading ESC byte (0x1B) is never valid at the start of a UTF-8
-// Tengo source file, so the presence of these bytes unambiguously identifies
-// a compiled binary rather than source code.
+// bytecodeMagic is the first four bytes of every encoded Bytecode file.
+// The leading ESC byte (0x1B) is never valid at the start of a UTF-8 Tengo
+// source file, so its presence unambiguously identifies a compiled binary.
 //
 // Layout: ESC 'T' 'n' 'g'
 var bytecodeMagic = [4]byte{0x1B, 'T', 'n', 'g'}
+
+// BytecodeKind is the fifth header byte and records how the file was compiled.
+type BytecodeKind byte
+
+const (
+	// BytecodeKindScript is a standalone script compiled by the normal path.
+	// Its MainFunction ends with OpSuspend and cannot be used as a module.
+	BytecodeKindScript BytecodeKind = 0x01
+
+	// BytecodeKindModule is a file compiled with module semantics (-module
+	// flag). Its MainFunction ends with OpReturn and can be loaded via import().
+	BytecodeKindModule BytecodeKind = 0x02
+)
 
 // Bytecode is a compiled instructions and constants.
 type Bytecode struct {
@@ -44,10 +56,25 @@ func (b *Bytecode) Clone() *Bytecode {
 	}
 }
 
-// Encode writes Bytecode data to the writer, prefixed by the four-byte
-// bytecodeMagic header so consumers can quickly identify compiled files.
+// Encode writes Bytecode data to the writer as a script-compiled file.
+// The output is prefixed with the four-byte magic header followed by
+// BytecodeKindScript so consumers can quickly identify the file type.
+//
+// To produce a file importable via import(), use EncodeModule instead.
 func (b *Bytecode) Encode(w io.Writer) error {
-	if _, err := w.Write(bytecodeMagic[:]); err != nil {
+	return b.encode(w, BytecodeKindScript)
+}
+
+// EncodeModule writes Bytecode data compiled with module semantics. The kind
+// byte is set to BytecodeKindModule, allowing the import resolver to accept
+// the file and reject script-compiled files with a clear error.
+func (b *Bytecode) EncodeModule(w io.Writer) error {
+	return b.encode(w, BytecodeKindModule)
+}
+
+func (b *Bytecode) encode(w io.Writer, kind BytecodeKind) error {
+	header := [5]byte{bytecodeMagic[0], bytecodeMagic[1], bytecodeMagic[2], bytecodeMagic[3], byte(kind)}
+	if _, err := w.Write(header[:]); err != nil {
 		return err
 	}
 	enc := gob.NewEncoder(w)
@@ -66,6 +93,16 @@ func (b *Bytecode) Encode(w io.Writer) error {
 func IsBytecodeData(data []byte) bool {
 	return len(data) >= len(bytecodeMagic) &&
 		bytes.Equal(data[:len(bytecodeMagic)], bytecodeMagic[:])
+}
+
+// BytecodeDataKind returns the kind byte from data produced by Encode or
+// EncodeModule. It returns BytecodeKindScript for legacy files that have no
+// kind byte (only the four-byte magic).
+func BytecodeDataKind(data []byte) BytecodeKind {
+	if len(data) >= 5 {
+		return BytecodeKind(data[4])
+	}
+	return BytecodeKindScript
 }
 
 // CountObjects returns the number of objects found in Constants.
@@ -128,21 +165,31 @@ func (b *Bytecode) ReplaceBuiltinModule(name string, attrs map[string]Object) {
 // Must only be called before the Bytecode is handed to any VM or Compiled
 // instance. Calling Decode on a Bytecode that is already in use is a data race.
 //
-// Files produced by Encode carry a four-byte magic header; Decode strips it
-// automatically. Legacy files compiled before the magic header was introduced
-// are also accepted for backward compatibility.
+// Files produced by Encode/EncodeModule carry a five-byte header (four magic
+// bytes + kind byte); Decode strips it automatically. Legacy files compiled
+// before the header was introduced are also accepted for backward
+// compatibility.
 func (b *Bytecode) Decode(r io.Reader, modules *ModuleMap) error {
 	if modules == nil {
 		modules = NewModuleMap()
 	}
 
-	// Read the first four bytes to check for the magic header.
-	header := make([]byte, len(bytecodeMagic))
-	if _, err := io.ReadFull(r, header); err != nil {
+	// Read up to five bytes to check for the magic header and kind byte.
+	header := make([]byte, 5)
+	n, err := io.ReadFull(r, header)
+	if err != nil && err != io.ErrUnexpectedEOF {
 		return err
 	}
-	if !bytes.Equal(header, bytecodeMagic[:]) {
-		// Legacy file: prepend the already-consumed bytes back into the stream.
+	header = header[:n]
+
+	if n >= 4 && bytes.Equal(header[:4], bytecodeMagic[:]) {
+		// Current format: consume the kind byte (header[4]) and continue.
+		// Any bytes beyond the 5-byte header belong to the gob stream.
+		if n > 5 {
+			r = io.MultiReader(bytes.NewReader(header[5:]), r)
+		}
+	} else {
+		// Legacy file without magic header: push all consumed bytes back.
 		r = io.MultiReader(bytes.NewReader(header), r)
 	}
 
