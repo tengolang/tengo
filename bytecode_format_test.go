@@ -49,16 +49,6 @@ func roundTrip(t *testing.T, b *tengo.Bytecode, modules *tengo.ModuleMap) *tengo
 	return got
 }
 
-// roundTripModule encodes b as a module and decodes it back.
-func roundTripModule(t *testing.T, b *tengo.Bytecode, modules *tengo.ModuleMap) *tengo.Bytecode {
-	t.Helper()
-	var buf bytes.Buffer
-	require.NoError(t, b.EncodeModule(&buf))
-	got := &tengo.Bytecode{}
-	require.NoError(t, got.Decode(bytes.NewReader(buf.Bytes()), modules))
-	return got
-}
-
 // minBytecode wraps a constant slice in a minimal Bytecode with an empty
 // main function. Used for object type round-trip tests.
 func minBytecode(constants []tengo.Object) *tengo.Bytecode {
