@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"sync"
 
@@ -19,6 +20,7 @@ type Script struct {
 	maxConstObjects  int
 	enableFileImport bool
 	importDir        string
+	importFS         fs.FS
 }
 
 // NewScript creates a Script instance with an input script.
@@ -88,6 +90,19 @@ func (s *Script) EnableFileImport(enable bool) {
 	s.enableFileImport = enable
 }
 
+// SetImportFS sets a virtual filesystem to use for module loading. When set,
+// import statements resolve against this FS instead of the OS filesystem,
+// making file imports available without touching the real disk.
+//
+// Use fs.Sub to root imports at a sub-directory of an existing FS:
+//
+//	s.SetImportFS(fs.Sub(myFS, "scripts"))
+//
+// When SetImportFS is used, calling EnableFileImport is not required.
+func (s *Script) SetImportFS(fsys fs.FS) {
+	s.importFS = fsys
+}
+
 // Compile compiles the script with all the defined variables, and, returns
 // Compiled object.
 func (s *Script) Compile() (*Compiled, error) {
@@ -107,6 +122,9 @@ func (s *Script) Compile() (*Compiled, error) {
 	c := NewCompiler(srcFile, symbolTable, nil, s.modules, nil)
 	c.EnableFileImport(s.enableFileImport)
 	c.SetImportDir(s.importDir)
+	if s.importFS != nil {
+		c.SetImportFS(s.importFS)
+	}
 	if err := c.Compile(file); err != nil {
 		return nil, err
 	}
