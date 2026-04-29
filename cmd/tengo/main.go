@@ -155,7 +155,7 @@ func CompileOnly(
 		outputFile = basename(inputFile) + ".out"
 	}
 
-	out, err := os.OpenFile(outputFile, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	out, err := os.OpenFile(outputFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return
 	}

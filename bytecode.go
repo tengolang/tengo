@@ -2,7 +2,6 @@ package tengo
 
 import (
 	"bytes"
-	"encoding/gob"
 	"fmt"
 	"io"
 	"reflect"
@@ -31,7 +30,11 @@ const (
 // Increment this when the serialised layout changes in a backward-incompatible
 // way so that Decode can reject stale files with a clear error instead of
 // silently producing corrupt state.
-const BytecodeFormatVersion byte = 0x01
+//
+// Version history:
+//   0x01 — gob-encoded payload (no longer supported; recompile required)
+//   0x02 — section-based custom binary format (current)
+const BytecodeFormatVersion byte = 0x02
 
 // BytecodeKind is the kind byte in the file header and records how the file
 // was compiled.
@@ -74,8 +77,8 @@ func (b *Bytecode) Clone() *Bytecode {
 }
 
 // Encode writes Bytecode data to the writer as a script-compiled file.
-// The output is prefixed with the four-byte magic header followed by
-// BytecodeKindScript so consumers can quickly identify the file type.
+// The output is prefixed with the 8-byte header followed by the
+// section-based binary payload.
 //
 // To produce a file importable via import(), use EncodeModule instead.
 func (b *Bytecode) Encode(w io.Writer) error {
@@ -98,14 +101,7 @@ func (b *Bytecode) encode(w io.Writer, kind BytecodeKind) error {
 	if _, err := w.Write(header[:]); err != nil {
 		return err
 	}
-	enc := gob.NewEncoder(w)
-	if err := enc.Encode(b.FileSet); err != nil {
-		return err
-	}
-	if err := enc.Encode(b.MainFunction); err != nil {
-		return err
-	}
-	return enc.Encode(b.Constants)
+	return b.encodeV2(w)
 }
 
 // IsBytecodeData reports whether data begins with the Tengo bytecode magic
@@ -117,7 +113,7 @@ func IsBytecodeData(data []byte) bool {
 }
 
 // BytecodeDataVersion returns the format version from the header of data
-// produced by Encode or EncodeModule. It returns 0 for legacy files that
+// produced by Encode or EncodeModule. It returns 0 for files that
 // pre-date the versioned header.
 func BytecodeDataVersion(data []byte) byte {
 	if IsBytecodeData(data) && len(data) > hdrOffVersion {
@@ -127,7 +123,7 @@ func BytecodeDataVersion(data []byte) byte {
 }
 
 // BytecodeDataKind returns the kind byte from data produced by Encode or
-// EncodeModule. It returns BytecodeKindScript for legacy files that pre-date
+// EncodeModule. It returns BytecodeKindScript for files that pre-date
 // the versioned header.
 func BytecodeDataKind(data []byte) BytecodeKind {
 	if IsBytecodeData(data) && len(data) > hdrOffKind {
@@ -196,19 +192,13 @@ func (b *Bytecode) ReplaceBuiltinModule(name string, attrs map[string]Object) {
 // Must only be called before the Bytecode is handed to any VM or Compiled
 // instance. Calling Decode on a Bytecode that is already in use is a data race.
 //
-// Three header generations are handled transparently:
-//
-//   - Current (8-byte): magic(4) + version(1) + kind(1) + reserved(2)
-//   - Previous (5-byte): magic(4) + kind(1)   — no version, no reserved
-//   - Legacy  (0-byte): no header at all       — raw gob from before headers
+// Only format version 0x02 (section-based binary) is supported. Files compiled
+// with an older version of Tengo must be recompiled.
 func (b *Bytecode) Decode(r io.Reader, modules *ModuleMap) error {
 	if modules == nil {
 		modules = NewModuleMap()
 	}
 
-	// Read up to bytecodeHeaderLen bytes to inspect the header. ReadFull
-	// returns io.ErrUnexpectedEOF when the stream is shorter; that is fine
-	// for legacy files and is handled below.
 	header := make([]byte, bytecodeHeaderLen)
 	n, err := io.ReadFull(r, header)
 	if err != nil && err != io.ErrUnexpectedEOF {
@@ -216,41 +206,27 @@ func (b *Bytecode) Decode(r io.Reader, modules *ModuleMap) error {
 	}
 	header = header[:n]
 
-	switch {
-	case n >= bytecodeHeaderLen && bytes.Equal(header[:4], bytecodeMagic[:]):
-		// Current 8-byte header — all bytes consumed, nothing to push back.
+	hasMagic := n >= 4 && bytes.Equal(header[:4], bytecodeMagic[:])
 
-	case n >= 5 && bytes.Equal(header[:4], bytecodeMagic[:]):
-		// Previous 5-byte header (magic + kind, no version/reserved).
-		// The bytes beyond position 5 are part of the gob stream.
-		r = io.MultiReader(bytes.NewReader(header[5:]), r)
-
-	default:
-		// Legacy file with no header — push every byte read back.
-		r = io.MultiReader(bytes.NewReader(header), r)
+	if !hasMagic {
+		return fmt.Errorf(
+			"file does not appear to be Tengo bytecode; " +
+				"if this is a legacy compiled file please recompile")
 	}
 
-	dec := gob.NewDecoder(r)
-	if err := dec.Decode(&b.FileSet); err != nil {
-		return err
+	version := byte(0)
+	if n > hdrOffVersion {
+		version = header[hdrOffVersion]
 	}
-	// TODO: files in b.FileSet.File does not have their 'set' field properly
-	//  set to b.FileSet as it's private field and not serialized by gob
-	//  encoder/decoder.
-	if err := dec.Decode(&b.MainFunction); err != nil {
-		return err
+
+	if version != BytecodeFormatVersion {
+		return fmt.Errorf(
+			"bytecode format version 0x%02x is not supported (current: 0x%02x); "+
+				"please recompile with the current version of Tengo",
+			version, BytecodeFormatVersion)
 	}
-	if err := dec.Decode(&b.Constants); err != nil {
-		return err
-	}
-	for i, v := range b.Constants {
-		fv, err := fixDecodedObject(v, modules)
-		if err != nil {
-			return err
-		}
-		b.Constants[i] = fv
-	}
-	return nil
+
+	return b.decodeV2(r, modules)
 }
 
 // RemoveDuplicates finds and remove the duplicate values in Constants.
@@ -348,64 +324,6 @@ func (b *Bytecode) RemoveDuplicates() {
 	}
 }
 
-func fixDecodedObject(
-	o Object,
-	modules *ModuleMap,
-) (Object, error) {
-	switch o := o.(type) {
-	case Bool:
-		if o.IsFalsy() {
-			return FalseValue, nil
-		}
-		return TrueValue, nil
-	case *Undefined:
-		return UndefinedValue, nil
-	case *Array:
-		for i, v := range o.Value {
-			fv, err := fixDecodedObject(v, modules)
-			if err != nil {
-				return nil, err
-			}
-			o.Value[i] = fv
-		}
-	case *ImmutableArray:
-		for i, v := range o.Value {
-			fv, err := fixDecodedObject(v, modules)
-			if err != nil {
-				return nil, err
-			}
-			o.Value[i] = fv
-		}
-	case *Map:
-		for k, v := range o.Value {
-			fv, err := fixDecodedObject(v, modules)
-			if err != nil {
-				return nil, err
-			}
-			o.Value[k] = fv
-		}
-	case *ImmutableMap:
-		modName := inferModuleName(o)
-		if mod := modules.GetBuiltinModule(modName); mod != nil {
-			return mod.AsImmutableMap(modName), nil
-		}
-
-		for k, v := range o.Value {
-			// encoding of user function not supported
-			if _, isUserFunction := v.(*UserFunction); isUserFunction {
-				return nil, fmt.Errorf("user function not decodable")
-			}
-
-			fv, err := fixDecodedObject(v, modules)
-			if err != nil {
-				return nil, err
-			}
-			o.Value[k] = fv
-		}
-	}
-	return o, nil
-}
-
 func updateConstIndexes(insts []byte, indexMap map[int]int) {
 	i := 0
 	for i < len(insts) {
@@ -440,24 +358,4 @@ func inferModuleName(mod *ImmutableMap) string {
 		return modName.Value
 	}
 	return ""
-}
-
-func init() {
-	gob.Register(&parser.SourceFileSet{})
-	gob.Register(&parser.SourceFile{})
-	gob.Register(&Array{})
-	gob.Register(Bool{})
-	gob.Register(&Bytes{})
-	gob.Register(Char{})
-	gob.Register(&CompiledFunction{})
-	gob.Register(&Error{})
-	gob.Register(Float{})
-	gob.Register(&ImmutableArray{})
-	gob.Register(&ImmutableMap{})
-	gob.Register(Int{})
-	gob.Register(&Map{})
-	gob.Register(&String{})
-	gob.Register(&Time{})
-	gob.Register(&Undefined{})
-	gob.Register(&UserFunction{})
 }
